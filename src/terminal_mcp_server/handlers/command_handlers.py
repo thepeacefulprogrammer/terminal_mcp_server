@@ -6,6 +6,7 @@ timeout support, and comprehensive error handling.
 """
 
 import asyncio
+import json
 import logging
 from typing import Dict, Any, Optional
 
@@ -61,6 +62,69 @@ class CommandHandlers:
         except Exception as e:
             logger.error(f"Command execution failed: {e}")
             raise
+    
+    def register_tools(self, mcp_server):
+        """
+        Register MCP tools with the FastMCP server.
+        
+        Args:
+            mcp_server: FastMCP server instance
+        """
+        logger.info("Registering command execution MCP tools...")
+        
+        @mcp_server.tool()
+        async def execute_command(
+            command: str,
+            working_directory: str = None,
+            timeout: int = None,
+        ) -> str:
+            """
+            Execute a terminal command.
+
+            Args:
+                command: The command to execute
+                working_directory: Directory to run the command in  
+                timeout: Command timeout in seconds
+
+            Returns:
+                JSON string with the command result
+            """
+            logger.info(f"MCP execute_command called: {command}")
+            
+            try:
+                # Use the handler's execute_command method
+                result = await self.execute_command(
+                    command=command,
+                    working_directory=working_directory,
+                    timeout=timeout,
+                    capture_output=True
+                )
+                
+                # Convert result to JSON for MCP response
+                result_dict = {
+                    "command": result.command,
+                    "exit_code": result.exit_code,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "execution_time": result.execution_time,
+                    "started_at": result.started_at.isoformat(),
+                    "completed_at": result.completed_at.isoformat()
+                }
+                
+                return json.dumps(result_dict, indent=2)
+                
+            except Exception as e:
+                error_result = {
+                    "command": command,
+                    "exit_code": -1,
+                    "stdout": "",
+                    "stderr": f"Command execution failed: {str(e)}",
+                    "execution_time": 0,
+                    "error": str(e)
+                }
+                return json.dumps(error_result, indent=2)
+        
+        logger.info("Command execution MCP tools registered successfully")
 
 
 # Global instance for MCP tool registration

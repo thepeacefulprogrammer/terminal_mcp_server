@@ -27,4 +27,10 @@ PyYAML>=6.0.0
 psutil>=5.9.0
 
 # Additional async subprocess utilities for enhanced process control
-aiofiles>=23.0.0 
+aiofiles>=23.0.0
+
+# Testing dependencies
+pytest>=7.0.0
+pytest-xdist>=3.0.0  # For parallel test execution (-n auto)
+pytest-asyncio>=0.21.0  # Better async test support
+pytest-timeout>=2.1.0  # For test timeout enforcement 

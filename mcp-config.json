@@ -1,0 +1,50 @@
+{
+  "mcpServers": {
+    "terminal-mcp-server-dev": {
+      "command": "python",
+      "args": [
+        "-m", 
+        "terminal_mcp_server.server",
+        "--config",
+        "config/config.yaml"
+      ],
+      "cwd": "/home/randy/workspace/personal/terminal_mcp_server",
+      "env": {
+        "PYTHONPATH": "/home/randy/workspace/personal/terminal_mcp_server/src",
+        "PYTHONUNBUFFERED": "1",
+        "LOG_LEVEL": "DEBUG"
+      }
+    },
+    "terminal-mcp-server-prod": {
+      "command": "python",
+      "args": [
+        "-m", 
+        "terminal_mcp_server.server",
+        "--config",
+        "config/config.yaml"
+      ],
+      "cwd": "/home/randy/workspace/personal/terminal_mcp_server",
+      "env": {
+        "PYTHONPATH": "/home/randy/workspace/personal/terminal_mcp_server/src",
+        "PYTHONUNBUFFERED": "1",
+        "LOG_LEVEL": "INFO"
+      }
+    },
+    "terminal-mcp-server-test": {
+      "command": "python",
+      "args": [
+        "-m", 
+        "terminal_mcp_server.server",
+        "--config",
+        "config/config.yaml"
+      ],
+      "cwd": "/home/randy/workspace/personal/terminal_mcp_server",
+      "env": {
+        "PYTHONPATH": "/home/randy/workspace/personal/terminal_mcp_server/src",
+        "PYTHONUNBUFFERED": "1",
+        "LOG_LEVEL": "DEBUG",
+        "TERMINAL_MCP_TEST_MODE": "1"
+      }
+    }
+  }
+} 

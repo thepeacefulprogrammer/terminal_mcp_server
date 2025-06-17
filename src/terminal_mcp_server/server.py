@@ -202,31 +202,10 @@ class TerminalMCPServer:
 
             return f"Terminal MCP Server is running! Message: {message}"
 
-        # Terminal command execution tool (placeholder)
-        @self.mcp.tool()
-        async def execute_command(
-            command: str,
-            working_directory: str = None,
-            timeout: int = None,
-        ) -> str:
-            """
-            Execute a terminal command.
+        # Register command execution tools using the handler
+        command_handlers.register_tools(self.mcp)
 
-            Args:
-                command: The command to execute
-                working_directory: Directory to run the command in
-                timeout: Command timeout in seconds
-
-            Returns:
-                JSON string with the command result
-            """
-            logger.info(f"execute_command called: command={command}")
-            await self._ensure_async_initialized()
-
-            # Placeholder implementation - will be implemented in later tasks
-            return f"Command '{command}' executed successfully (placeholder)"
-
-        # Background process management tool (placeholder)
+        # Background process management tool (placeholder - will be implemented in Task 3.0)
         @self.mcp.tool()
         async def start_background_process(
             command: str,

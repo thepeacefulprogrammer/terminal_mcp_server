@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "terminal-mcp-server": {
+      "command": "python",
+      "args": [
+        "-m", 
+        "terminal_mcp_server.server"
+      ],
+      "cwd": "/home/randy/workspace/personal/terminal_mcp_server",
+      "env": {
+        "PYTHONPATH": "/home/randy/workspace/personal/terminal_mcp_server/src",
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  }
+} 

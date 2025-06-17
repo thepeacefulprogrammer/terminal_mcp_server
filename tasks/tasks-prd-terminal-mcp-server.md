@@ -31,7 +31,12 @@
 - `tests/unit/test_terminal_config.py` - Comprehensive tests for terminal server configuration validation.
 - `tests/unit/test_scaffolding_cleanup.py` - Tests verifying all example/scaffolding files have been removed.
 - `README.md` - Updated to remove scaffolding references and reflect terminal server focus.
-- `tests/unit/test_command_handlers.py` - Unit tests for command execution handlers.
+- `src/terminal_mcp_server/utils/command_executor.py` - Complete async command execution implementation with timeout, environment support, and output capture.
+- `tests/unit/test_command_executor.py` - Comprehensive tests for command executor functionality (15 tests covering all execution scenarios).
+- `tests/unit/test_command_handlers.py` - Comprehensive unit tests for command execution handlers with MCP tool registration (17 tests covering basic execution, parameter handling, error scenarios, and MCP tool functionality).
+- `src/terminal_mcp_server/handlers/command_handlers.py` - Enhanced command handlers with MCP tool registration method and JSON response formatting for the execute_command tool.
+- `src/terminal_mcp_server/server.py` - Updated server implementation to use command_handlers.register_tools() instead of placeholder execute_command implementation.
+- `tests/unit/test_scaffolding_cleanup.py` - Updated to include new test_command_handlers.py in expected test files list.
 - `tests/unit/test_process_handlers.py` - Unit tests for process management handlers.
 - `tests/unit/test_python_handlers.py` - Unit tests for Python execution handlers.
 - `tests/unit/test_environment_handlers.py` - Unit tests for environment management handlers.
@@ -59,9 +64,9 @@
   - [x] 1.6 Remove example handlers and models from the scaffolding
 
 - [ ] 2.0 Implement Core Command Execution System
-  - [ ] 2.1 Create terminal_models.py with CommandRequest, CommandResult, and ProcessInfo models
-  - [ ] 2.2 Implement command_executor.py with async command execution and output streaming
-  - [ ] 2.3 Create command_handlers.py with execute_command MCP tool
+  - [x] 2.1 Create terminal_models.py with CommandRequest, CommandResult, and ProcessInfo models
+  - [x] 2.2 Implement command_executor.py with async command execution and output streaming
+  - [x] 2.3 Create command_handlers.py with execute_command MCP tool
   - [ ] 2.4 Implement real-time output streaming with configurable buffer sizes
   - [ ] 2.5 Add command timeout and interruption support (Ctrl+C equivalent)
   - [ ] 2.6 Implement exit code capture and error handling

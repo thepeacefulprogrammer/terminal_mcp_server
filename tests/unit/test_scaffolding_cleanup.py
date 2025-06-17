@@ -142,7 +142,10 @@ def test_only_terminal_tests_exist():
         "test_requirements.py",
         "test_terminal_models.py",
         "test_terminal_config.py",
-        "test_scaffolding_cleanup.py"  # This test file itself
+        "test_scaffolding_cleanup.py",  # This test file itself
+        "test_command_executor.py",     # New command executor tests
+        "test_command_handlers.py",    # New command handlers tests
+        "test_output_streamer.py"      # New output streamer tests
     }
     
     # Get actual test files
