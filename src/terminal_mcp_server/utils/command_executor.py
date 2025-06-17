@@ -438,6 +438,14 @@ class CommandExecutor:
         """Execute command with streaming output capture."""
         started_at = datetime.now()
         
+        # Create a shared container for captured chunks that both the generator and result can access
+        class ChunkCapture:
+            def __init__(self):
+                self.chunks = []
+                self.completed = False
+        
+        chunk_capture = ChunkCapture()
+        
         try:
             logger.debug(f"[{execution_id}] Creating subprocess for streaming")
             # Create subprocess with pipes
@@ -452,19 +460,102 @@ class CommandExecutor:
             
             logger.debug(f"[{execution_id}] Subprocess created with PID: {process.pid}")
             
-            # Create the streaming generator
-            stream_generator = self._create_stream_generator(
-                process, output_streamer, execution_id, timeout
+            # Create a capturing stream generator that stores chunks as they pass through
+            async def capturing_stream_generator():
+                try:
+                    async for chunk in output_streamer.stream_output(process):
+                        chunk_capture.chunks.append(chunk)  # Store in shared container
+                        yield chunk
+                except Exception as e:
+                    logger.error(f"[{execution_id}] Error during output streaming: {e}")
+                    error_chunk = f"\n[STREAMING ERROR: {str(e)}]"
+                    chunk_capture.chunks.append(error_chunk)
+                    yield error_chunk
+                finally:
+                    chunk_capture.completed = True
+                    logger.debug(f"[{execution_id}] Output streaming completed")
+            
+            # Create a preliminary result that will be updated when process completes
+            # But include the shared chunk container immediately
+            preliminary_result = CommandResult(
+                command=command,
+                exit_code=0,  # Will be updated when process completes
+                stdout="",  # Will be updated when process completes
+                stderr="",  # Will be updated when process completes
+                execution_time=0.0,  # Will be updated when process completes
+                started_at=started_at,
+                completed_at=started_at,  # Will be updated when process completes
+                captured_chunks=chunk_capture.chunks  # Reference to shared container
             )
             
-            # Wait for process completion in background
-            final_result_task = asyncio.create_task(
-                self._wait_for_process_completion(
-                    process, command, started_at, execution_id, timeout
-                )
-            )
+            # Start process completion task in background to update the result
+            async def update_result_when_complete():
+                try:
+                    # Wait for process completion with timeout
+                    if timeout:
+                        await asyncio.wait_for(process.wait(), timeout=timeout)
+                    else:
+                        await process.wait()
+                    
+                    completed_at = datetime.now()
+                    execution_time = (completed_at - started_at).total_seconds()
+                    self._total_execution_time += execution_time
+                    
+                    # Capture remaining output
+                    stdout_bytes, stderr_bytes = await process.communicate()
+                    stdout_output = stdout_bytes.decode('utf-8', errors='replace') if stdout_bytes else ""
+                    stderr_output = stderr_bytes.decode('utf-8', errors='replace') if stderr_bytes else ""
+                    
+                    # Update the result object in place
+                    preliminary_result.exit_code = process.returncode
+                    preliminary_result.stdout = stdout_output
+                    preliminary_result.stderr = stderr_output
+                    preliminary_result.execution_time = execution_time
+                    preliminary_result.completed_at = completed_at
+                    
+                    logger.info(f"[{execution_id}] Streaming command completed with exit code: {process.returncode}")
+                    logger.info(f"[{execution_id}] Execution time: {execution_time:.3f}s")
+                    
+                    # Log audit trail
+                    self._log_command_audit(
+                        CommandRequest(command=command, capture_output=True), 
+                        preliminary_result, 
+                        execution_id
+                    )
+                    
+                except asyncio.TimeoutError:
+                    logger.warning(f"[{execution_id}] Streaming command timed out after {timeout} seconds")
+                    
+                    # Kill the process
+                    await self._kill_process_group(process, execution_id)
+                    
+                    completed_at = datetime.now()
+                    execution_time = (completed_at - started_at).total_seconds()
+                    self._total_execution_time += execution_time
+                    
+                    # Update result with timeout info
+                    preliminary_result.exit_code = -1
+                    preliminary_result.stderr = f"Command timed out after {timeout} seconds"
+                    preliminary_result.execution_time = execution_time
+                    preliminary_result.completed_at = completed_at
+                    
+                except Exception as e:
+                    logger.error(f"[{execution_id}] Error waiting for process completion: {e}")
+                    completed_at = datetime.now()
+                    execution_time = (completed_at - started_at).total_seconds()
+                    
+                    # Update result with error info
+                    preliminary_result.exit_code = -1
+                    preliminary_result.stderr = f"Error during execution: {str(e)}"
+                    preliminary_result.execution_time = execution_time
+                    preliminary_result.completed_at = completed_at
             
-            return stream_generator, await final_result_task
+            # Start background task to update result
+            asyncio.create_task(update_result_when_complete())
+            
+            # Return the stream generator and result immediately
+            # The result contains a reference to the shared chunk container
+            return capturing_stream_generator(), preliminary_result
             
         except Exception as e:
             logger.error(f"[{execution_id}] Error creating streaming subprocess: {e}")
@@ -478,119 +569,12 @@ class CommandExecutor:
                 stderr=f"Error creating subprocess: {str(e)}",
                 execution_time=execution_time,
                 started_at=started_at,
-                completed_at=completed_at
+                completed_at=completed_at,
+                captured_chunks=[]  # Empty chunks for error case
             )
             
             async def error_stream():
                 yield f"Error: {str(e)}"
                 return
             
-            return error_stream(), result
-
-    async def _create_stream_generator(
-        self,
-        process: asyncio.subprocess.Process,
-        output_streamer: OutputStreamer,
-        execution_id: str,
-        timeout: Optional[int]
-    ) -> AsyncGenerator[str, None]:
-        """Create async generator for streaming output."""
-        logger.debug(f"[{execution_id}] Starting output streaming")
-        
-        try:
-            # Stream output from the process
-            async for chunk in output_streamer.stream_output(process):
-                yield chunk
-                
-        except Exception as e:
-            logger.error(f"[{execution_id}] Error during output streaming: {e}")
-            yield f"\n[STREAMING ERROR: {str(e)}]"
-        
-        finally:
-            logger.debug(f"[{execution_id}] Output streaming completed")
-
-    async def _wait_for_process_completion(
-        self,
-        process: asyncio.subprocess.Process,
-        command: str,
-        started_at: datetime,
-        execution_id: str,
-        timeout: Optional[int]
-    ) -> CommandResult:
-        """Wait for process completion and return final result."""
-        try:
-            # Wait for process completion with timeout
-            if timeout:
-                await asyncio.wait_for(process.wait(), timeout=timeout)
-            else:
-                await process.wait()
-            
-            completed_at = datetime.now()
-            execution_time = (completed_at - started_at).total_seconds()
-            self._total_execution_time += execution_time
-            
-            # Capture remaining output
-            stdout_bytes, stderr_bytes = await process.communicate()
-            stdout_output = stdout_bytes.decode('utf-8', errors='replace') if stdout_bytes else ""
-            stderr_output = stderr_bytes.decode('utf-8', errors='replace') if stderr_bytes else ""
-            
-            logger.info(f"[{execution_id}] Streaming command completed with exit code: {process.returncode}")
-            logger.info(f"[{execution_id}] Execution time: {execution_time:.3f}s")
-            
-            result = CommandResult(
-                command=command,
-                exit_code=process.returncode,
-                stdout=stdout_output,
-                stderr=stderr_output,
-                execution_time=execution_time,
-                started_at=started_at,
-                completed_at=completed_at
-            )
-            
-            # Log audit trail
-            self._log_command_audit(
-                CommandRequest(command=command, capture_output=True), 
-                result, 
-                execution_id
-            )
-            
-            return result
-            
-        except asyncio.TimeoutError:
-            logger.warning(f"[{execution_id}] Streaming command timed out after {timeout} seconds")
-            
-            # Kill the process
-            await self._kill_process_group(process, execution_id)
-            
-            completed_at = datetime.now()
-            execution_time = (completed_at - started_at).total_seconds()
-            self._total_execution_time += execution_time
-            
-            result = CommandResult(
-                command=command,
-                exit_code=-1,
-                stdout="",
-                stderr=f"Command timed out after {timeout} seconds",
-                execution_time=execution_time,
-                started_at=started_at,
-                completed_at=completed_at
-            )
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"[{execution_id}] Error waiting for process completion: {e}")
-            completed_at = datetime.now()
-            execution_time = (completed_at - started_at).total_seconds()
-            
-            result = CommandResult(
-                command=command,
-                exit_code=-1,
-                stdout="",
-                stderr=f"Error during execution: {str(e)}",
-                execution_time=execution_time,
-                started_at=started_at,
-                completed_at=completed_at
-            )
-            
-            return result 
+            return error_stream(), result 

@@ -33,6 +33,7 @@ class CommandResult(BaseModel):
     execution_time: float = Field(..., description="Execution time in seconds")
     started_at: datetime = Field(..., description="When command started")
     completed_at: datetime = Field(..., description="When command completed")
+    captured_chunks: Optional[List[str]] = Field(default=None, description="Captured streaming output chunks")
 
 
 class ProcessInfo(BaseModel):

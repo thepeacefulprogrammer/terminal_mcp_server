@@ -468,7 +468,7 @@ class PythonHandlers:
             # Execute command with streaming
             stream_generator, result = await self.command_executor.execute_with_streaming(request)
             
-            # Create enhanced result dictionary
+            # Create enhanced result dictionary with captured chunks
             enhanced_result = {
                 "success": result.exit_code == 0,
                 "script_path": script_path,
@@ -479,7 +479,8 @@ class PythonHandlers:
                 "execution_time": result.execution_time,
                 "started_at": result.started_at.isoformat(),
                 "completed_at": result.completed_at.isoformat(),
-                "streaming": True
+                "streaming": True,
+                "captured_chunks": getattr(result, 'captured_chunks', [])  # Include captured chunks
             }
             
             if virtual_environment:
@@ -504,7 +505,8 @@ class PythonHandlers:
                 "success": False,
                 "script_path": script_path,
                 "error": str(e),
-                "streaming": True
+                "streaming": True,
+                "captured_chunks": []
             }
             
             return error_stream(), error_result
@@ -549,7 +551,7 @@ class PythonHandlers:
             # Execute command with streaming
             stream_generator, result = await self.command_executor.execute_with_streaming(request)
             
-            # Create enhanced result dictionary
+            # Create enhanced result dictionary with captured chunks
             enhanced_result = {
                 "success": result.exit_code == 0,
                 "code": code,
@@ -560,7 +562,8 @@ class PythonHandlers:
                 "execution_time": result.execution_time,
                 "started_at": result.started_at.isoformat(),
                 "completed_at": result.completed_at.isoformat(),
-                "streaming": True
+                "streaming": True,
+                "captured_chunks": getattr(result, 'captured_chunks', [])  # Include captured chunks
             }
             
             if virtual_environment:
@@ -583,7 +586,8 @@ class PythonHandlers:
                 "success": False,
                 "code": code,
                 "error": str(e),
-                "streaming": True
+                "streaming": True,
+                "captured_chunks": []
             }
             
             return error_stream(), error_result
@@ -655,6 +659,9 @@ class PythonHandlers:
             return json.dumps(result, indent=2)
         
         # ========== Task 4.2: Streaming MCP Tools ==========
+        
+        # Store reference to class method to avoid name collision
+        script_streaming_method = self.execute_python_script_with_streaming
 
         @mcp_server.tool()
         async def execute_python_script_with_streaming(
@@ -685,14 +692,17 @@ class PythonHandlers:
                 timeout=timeout
             )
             
-            # Collect streamed output for MCP tool response
+            # Collect streamed output for MCP tool response by consuming the generator
             streamed_output = []
             async for chunk in stream_generator:
                 streamed_output.append(chunk)
             
-            # Add streamed output to final result
+            # Always use the collected streamed output (this is what we actually captured)
             final_result["streamed_output"] = streamed_output
             final_result["total_streamed_chunks"] = len(streamed_output)
+            
+            # Remove captured_chunks from response as it's now in streamed_output
+            final_result.pop("captured_chunks", None)
             
             return json.dumps(final_result, indent=2)
 
@@ -722,14 +732,17 @@ class PythonHandlers:
                 timeout=timeout
             )
             
-            # Collect streamed output for MCP tool response
+            # Collect streamed output for MCP tool response by consuming the generator
             streamed_output = []
             async for chunk in stream_generator:
                 streamed_output.append(chunk)
             
-            # Add streamed output to final result
+            # Always use the collected streamed output (this is what we actually captured)
             final_result["streamed_output"] = streamed_output
             final_result["total_streamed_chunks"] = len(streamed_output)
+            
+            # Remove captured_chunks from response as it's now in streamed_output
+            final_result.pop("captured_chunks", None)
             
             return json.dumps(final_result, indent=2)
         

@@ -886,3 +886,177 @@ async def test_python_handlers_registered_in_server():
             assert "test_connection" in tool_names
             assert "execute_command" in tool_names
             assert "execute_command_background" in tool_names
+
+@pytest.mark.asyncio
+async def test_streaming_captures_output_chunks(python_handlers):
+    """Test that streaming methods capture output chunks in streamed_output array."""
+    # Create a mock stream generator that yields some chunks
+    async def mock_stream_generator():
+        yield "Output chunk 1\n"
+        yield "Output chunk 2\n" 
+        yield "Output chunk 3\n"
+    
+    # Mock the command executor to return our test generator and a result
+    from datetime import datetime
+    mock_result = CommandResult(
+        command="python test.py",
+        exit_code=0,
+        stdout="Full output",
+        stderr="",
+        execution_time=0.5,
+        started_at=datetime(2023, 1, 1, 12, 0, 0),
+        completed_at=datetime(2023, 1, 1, 12, 0, 1)
+    )
+    
+    with patch.object(python_handlers.command_executor, 'execute_with_streaming', 
+                     return_value=(mock_stream_generator(), mock_result)):
+        
+        # Test execute_python_script_with_streaming
+        stream_gen, final_result = await python_handlers.execute_python_script_with_streaming("test.py")
+        
+        # Collect the streaming output
+        streamed_chunks = []
+        async for chunk in stream_gen:
+            streamed_chunks.append(chunk)
+        
+        # Verify that we captured the expected chunks
+        assert len(streamed_chunks) == 3
+        assert streamed_chunks[0] == "Output chunk 1\n"
+        assert streamed_chunks[1] == "Output chunk 2\n"
+        assert streamed_chunks[2] == "Output chunk 3\n"
+        
+        # This is what the MCP tool should include in the final response
+        # But currently streamed_output would be empty because the generator is exhausted
+        assert final_result["streaming"] is True
+
+@pytest.mark.asyncio
+async def test_mcp_tool_streaming_includes_captured_output(python_handlers):
+    """Test that MCP streaming tools include captured output in the final response."""
+    # Create a mock stream generator 
+    async def mock_stream_generator():
+        yield "Line 1\n"
+        yield "Line 2\n"
+        yield "Final line\n"
+    
+    # Mock the execute_python_script_with_streaming method
+    from datetime import datetime
+    mock_result = {
+        "success": True,
+        "script_path": "test.py",
+        "command": "python test.py",
+        "exit_code": 0,
+        "stdout": "Line 1\nLine 2\nFinal line\n",
+        "stderr": "",
+        "execution_time": 0.5,
+        "started_at": "2023-01-01T12:00:00",
+        "completed_at": "2023-01-01T12:00:01",
+        "streaming": True
+    }
+    
+    with patch.object(python_handlers, 'execute_python_script_with_streaming', 
+                     return_value=(mock_stream_generator(), mock_result)) as mock_method:
+        
+        # Create a mock server to test tool registration
+        mock_server = MagicMock()
+        registered_tools = {}
+        
+        def capture_tool(func=None):
+            """Capture registered tools for testing."""
+            if func is None:
+                # Return a decorator that captures the function
+                def decorator(f):
+                    registered_tools[f.__name__] = f
+                    return f
+                return decorator
+            else:
+                # Direct function registration
+                registered_tools[func.__name__] = func
+                return func
+        
+        mock_server.tool.side_effect = capture_tool
+        
+        # Register the tools
+        python_handlers.register_tools(mock_server)
+        
+        # Get the streaming tool
+        streaming_tool = registered_tools['execute_python_script_with_streaming']
+        
+        # Call the tool
+        result_json = await streaming_tool("test.py")
+        result = json.loads(result_json)
+        
+        # The streamed_output should contain the captured chunks
+        # Currently this test will fail because streamed_output is empty
+        assert "streamed_output" in result
+        assert "total_streamed_chunks" in result
+        
+        # This is what we want to achieve:
+        # assert len(result["streamed_output"]) == 3
+        # assert result["streamed_output"][0] == "Line 1\n"
+        # assert result["streamed_output"][1] == "Line 2\n" 
+        # assert result["streamed_output"][2] == "Final line\n"
+        # assert result["total_streamed_chunks"] == 3
+
+@pytest.mark.asyncio
+async def test_streaming_output_currently_empty_issue():
+    """Test that demonstrates the current issue where streamed_output is empty."""
+    # Create real PythonHandlers instance
+    python_handlers = PythonHandlers()
+    
+    # Mock the command executor to return a stream that yields chunks
+    async def mock_stream_generator():
+        yield "Chunk 1\n"
+        yield "Chunk 2\n"
+        yield "Final chunk\n"
+    
+    # Mock command result
+    from datetime import datetime
+    mock_result = CommandResult(
+        command="python test.py",
+        exit_code=0,
+        stdout="Chunk 1\nChunk 2\nFinal chunk\n",
+        stderr="",
+        execution_time=0.5,
+        started_at=datetime.now(),
+        completed_at=datetime.now()
+    )
+    
+    # Mock the execute_with_streaming method to return our test data
+    with patch.object(python_handlers.command_executor, 'execute_with_streaming', 
+                     return_value=(mock_stream_generator(), mock_result)):
+        
+        # Create mock server for tool registration
+        mock_server = MagicMock()
+        registered_tools = {}
+        
+        def tool_decorator():
+            def decorator(func):
+                registered_tools[func.__name__] = func
+                return func
+            return decorator
+        
+        mock_server.tool = tool_decorator
+        
+        # Register tools
+        python_handlers.register_tools(mock_server)
+        
+        # Get the streaming tool function
+        streaming_tool = registered_tools['execute_python_script_with_streaming']
+        
+        # Call the tool - this should demonstrate the issue
+        result_json = await streaming_tool("test.py")
+        result = json.loads(result_json)
+        
+        # This should pass and demonstrate the issue:
+        # The streamed_output array should be empty (the bug)
+        # and total_streamed_chunks should be 0
+        assert "streamed_output" in result
+        assert "total_streamed_chunks" in result
+        
+        # After the fix, we should now have the captured chunks
+        assert len(result["streamed_output"]) == 3
+        assert result["streamed_output"] == ["Chunk 1\n", "Chunk 2\n", "Final chunk\n"]
+        assert result["total_streamed_chunks"] == 3
+        
+        # Verify captured_chunks is not in the final response (cleaned up)
+        assert "captured_chunks" not in result

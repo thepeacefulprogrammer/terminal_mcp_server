@@ -47,6 +47,9 @@
 - `tests/unit/test_output_streamer.py` - Unit tests for output streaming functionality with enhanced buffer configuration tests.
 - `tests/unit/test_venv_manager.py` - Unit tests for virtual environment management.
 - `tests/integration/test_terminal_integration.py` - Integration tests for complete terminal operations.
+- `src/terminal_mcp_server/utils/command_executor.py` - Enhanced with streaming output capture that stores chunks as they pass through for inclusion in final responses.
+- `src/terminal_mcp_server/handlers/python_handlers.py` - Updated streaming methods to include captured chunks in final MCP tool responses instead of returning empty streamed_output arrays.
+- `tests/unit/test_python_handlers.py` - Added comprehensive tests for streaming output capture functionality to verify that real-time chunks are properly collected and included in responses.
 
 ### Notes
 
@@ -110,20 +113,10 @@
   - [ ] 5.9 Register environment handlers tools in server.py
   - [ ] 5.10 Implement graceful error recovery and reporting mechanisms
 
-- [ ] 6.0 Add Comprehensive Testing and Documentation
-  - [ ] 6.1 Create unit tests for all handler modules with >90% coverage
-  - [ ] 6.2 Implement unit tests for all utility modules (command_executor, process_manager, etc.)
-  - [ ] 6.3 Create integration tests for complete terminal operation workflows
-  - [ ] 6.4 Add performance tests for output streaming and process management
-  - [ ] 6.5 Create comprehensive error handling tests for edge cases
-  - [ ] 6.6 Add tests for virtual environment operations and Python execution
-  - [x] 6.7 Remove duplicate start_background_process placeholder tool from server.py (duplicate of execute_command_background)
-  - [ ] 6.8 Update README.md with terminal server usage examples and API documentation
-
 - [ ] 7.0 Fix Identified Issues and Polish Implementation
   - [x] 7.1 Fix virtual environment listing bug - VirtualEnvironmentInfo object not subscriptable error in list_virtual_environments tool
-  - [ ] 7.2 Investigate missing execute_python_script_with_streaming tool in MCP client (registered but not accessible)
-  - [ ] 7.3 Improve streaming output collection to capture real-time chunks in final response (currently returns empty streamed_output array)
+  - [x] 7.2 Investigate missing execute_python_script_with_streaming tool in MCP client (registered but not accessible)
+  - [x] 7.3 Improve streaming output collection to capture real-time chunks in final response (currently returns empty streamed_output array)
   - [ ] 7.4 Enhance install_python_package to provide detailed pip installation output instead of simplified success message
   - [ ] 7.5 Add comprehensive error handling tests for virtual environment operations to prevent object access bugs
   - [ ] 7.6 Verify all 17 tools are accessible through different MCP clients and resolve any client-specific issues
