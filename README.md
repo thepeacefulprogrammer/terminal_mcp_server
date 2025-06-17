@@ -1,259 +1,171 @@
-# MCP Scaffolding Project
+# Terminal MCP Server
 
-A template for creating Model Context Protocol (MCP) servers using FastMCP with modern Python best practices.
+A comprehensive Model Context Protocol (MCP) server that provides full terminal and system access capabilities to AI agents. This server enables AI Coding Agents to execute any command-line operations, manage processes, execute Python scripts, and perform system-level tasks through a secure and robust MCP interface.
 
-## Overview
+## 🎯 Project Vision
 
-This project provides a solid foundation for building MCP servers that work with any MCP-compatible AI agent, including:
-- **Claude Desktop** - Anthropic's desktop application
-- **Continue** - VS Code AI coding assistant extension
-- **Custom MCP clients** - Any application implementing the MCP protocol
+**Transform AI agents into autonomous developers** by providing complete terminal access equivalent to what a human developer would have. This server bridges the gap between AI reasoning and system-level operations, enabling:
 
-The scaffolding includes:
-- **FastMCP** for MCP server implementation
-- **Modern Python packaging** with pyproject.toml
-- **Pydantic models** for data validation
-- **Comprehensive testing** with pytest
-- **Code quality tools** (black, isort, flake8, mypy, bandit)
-- **Pre-commit hooks** for automated quality checks
-- **Structured logging** with file and console output
-- **Configuration management** with YAML files
-- **Authentication utilities** for API keys and tokens
+- **Autonomous Development**: AI agents can compile, test, debug, and deploy code
+- **System Administration**: Full access to Linux command-line operations
+- **Process Management**: Background process lifecycle management
+- **Python Integration**: Script execution with virtual environment support
+- **Real-time Feedback**: Streaming command outputs for immediate decision making
 
-## Quick Start
+## 🚀 Planned Features
 
-### Option 1: MCP Client Integration (Recommended)
+### Core Capabilities
+- **18 MCP Tools** for comprehensive terminal operations
+- **Real-time Output Streaming** with <50ms latency
+- **Background Process Management** with monitoring and control
+- **Python Script Execution** with dependency management
+- **Virtual Environment Support** for project isolation
+- **Full System Access** for development and debugging
 
-For immediate testing with MCP-compatible AI agents:
+### MCP Tools (In Development)
+
+#### Command Execution
+- `execute_command` - Execute shell commands with real-time output
+- `execute_command_background` - Start commands in the background
+- `get_command_output` - Retrieve output from background commands
+
+#### Process Management  
+- `list_background_processes` - List all active background processes
+- `kill_background_process` - Terminate background processes
+- `get_process_status` - Get detailed process status
+- `restart_background_process` - Restart failed processes
+
+#### Python Integration
+- `execute_python_script` - Run Python scripts with output streaming
+- `execute_python_code` - Execute Python code directly
+- `install_python_package` - Manage Python dependencies
+
+#### Environment Management
+- `change_directory` - Change working directory
+- `get_current_directory` - Get current directory
+- `set_environment_variable` - Set environment variables
+- `get_environment_variables` - Get environment variables
+
+#### Virtual Environment Tools
+- `list_virtual_environments` - Discover available virtual environments
+- `activate_virtual_environment` - Switch virtual environments
+- `create_virtual_environment` - Create new virtual environments
+- `install_dependencies` - Install requirements.txt dependencies
+
+## 📋 Implementation Status
+
+This project is currently in development. See our [Implementation Task List](tasks/tasks-prd-terminal-mcp-server.md) for detailed progress.
+
+### Phase 1: Core Functionality ⏳
+- [ ] Basic command execution with output streaming
+- [ ] Error handling and exit code reporting  
+- [ ] Background process management
+
+### Phase 2: Python Integration ⏳
+- [ ] Python script execution
+- [ ] Virtual environment support
+- [ ] Dependency management
+
+### Phase 3: Advanced Features ⏳
+- [ ] Process monitoring and restart capabilities
+- [ ] Advanced output handling and filtering
+- [ ] Performance optimizations
+
+## 🎯 Target Use Case
+
+**Primary User**: AI Coding Agent at `/home/randy/workspace/personal/my_coding_agent`
+
+**Capabilities Enabled**:
+- Autonomous code compilation and testing
+- Real-time debugging with immediate feedback
+- File system operations and project management
+- Package installation and dependency management
+- System monitoring and process control
+- Integration testing and deployment tasks
+
+## 🛠️ Current Development Setup
+
+This project started from the MCP Scaffolding template and is being transformed into a Terminal MCP Server.
+
+### Quick Start (Development)
 
 ```bash
-# Clone this template (or use as template on GitHub)
-git clone <your-repo-url> my-new-mcp-server
-cd my-new-mcp-server
-
-# Run the automated MCP client setup
-python setup_mcp_client.py
-```
-
-This interactive script will:
-- Install the MCP server and dependencies
-- Help you choose your MCP client (Claude Desktop, Continue, or custom)
-- Configure the client's `mcp.json` file automatically
-- Test the server to ensure it's working
-- Show you the available example tools
-
-**Then restart your MCP client and try these prompts:**
-- "Test the connection to the MCP scaffolding server"
-- "Create an example tool called 'my-first-tool'"
-- "Get some example data from the scaffolding server"
-
-### Option 2: Manual Development Setup
-
-For development and customization:
-
-```bash
-# Clone this template (or use as template on GitHub)
-git clone <your-repo-url> my-new-mcp-server
-cd my-new-mcp-server
+# Clone the repository
+git clone <repository-url> terminal_mcp_server
+cd terminal_mcp_server
 
 # Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate
 
-# Install dependencies
+# Install development dependencies
 pip install -e ".[dev]"
 
 # Install pre-commit hooks
 pre-commit install
 ```
 
-### 2. Configure Your Project
-
-1. **Update pyproject.toml**: Change project name, description, and author info
-2. **Configure environment**: Copy `env.example` to `.env` and set your variables
-3. **Update config/config.yaml**: Modify server configuration as needed
-4. **Replace example code**: Replace the example handlers and models with your logic
-
-### 3. Run the Server
+### Run Current Server (Scaffolding Version)
 
 ```bash
-# Run the MCP server
+# Run the server (currently example tools only)
 python -m mcp_scaffolding.server
 
-# Or run with custom config
-python -m mcp_scaffolding.server --config config/my_config.yaml
-
-# Or use the console script (after pip install)
-mcp-scaffolding-server
-```
-
-### 4. Test Your Server
-
-```bash
 # Run tests
 pytest
-
-# Run with coverage
-pytest --cov=src --cov-report=html
-
-# Run specific test category
-pytest -m unit
-pytest -m integration
 ```
 
-## Project Structure
+## 📚 Documentation
 
-```
-my_mcp_scaffolding/
-├── src/
-│   └── mcp_scaffolding/           # Main package
-│       ├── __init__.py
-│       ├── server.py              # Main MCP server
-│       ├── handlers/              # MCP tool handlers
-│       │   ├── __init__.py
-│       │   └── example_handlers.py
-│       ├── models/                # Pydantic models
-│       │   ├── __init__.py
-│       │   └── example_models.py
-│       └── utils/                 # Utility modules
-│           ├── __init__.py
-│           ├── config.py          # Configuration loading
-│           └── auth.py            # Authentication utilities
-├── tests/                         # Test suite
-│   ├── unit/                      # Unit tests
-│   └── integration/               # Integration tests
-├── config/                        # Configuration files
-│   └── config.yaml               # Default configuration
-├── docs/                          # Documentation
-├── logs/                          # Log files (auto-created)
-├── pyproject.toml                 # Modern Python packaging
-├── .pre-commit-config.yaml        # Code quality hooks
-├── .gitignore                     # Git ignore rules
-├── env.example                    # Environment template
-└── README.md                      # This file
-```
+- **[Product Requirements Document](tasks/prd-terminal-mcp-server.md)** - Complete feature specifications
+- **[Implementation Task List](tasks/tasks-prd-terminal-mcp-server.md)** - Detailed development roadmap
+- **[Current Examples](#available-example-tools)** - Test tools from scaffolding template
 
-## Available Example Tools
+## 🔧 Architecture Overview
 
-The scaffolding comes with 3 example MCP tools that you can test immediately:
+### Design Principles
+- **Async-First**: All operations use async/await for non-blocking execution
+- **Real-time Streaming**: Command outputs stream in real-time using async generators  
+- **Process Safety**: Comprehensive process lifecycle management with cleanup
+- **Resource Limits**: Configurable limits for memory usage and process counts
+- **Comprehensive Logging**: Full audit trail of all operations
+
+### Technical Stack
+- **FastMCP**: MCP protocol implementation
+- **psutil**: Advanced process monitoring
+- **asyncio**: Asynchronous process execution
+- **Pydantic**: Data validation and modeling
+- **pytest**: Testing framework with >90% coverage target
+
+## 🎮 Available Example Tools (Current Scaffolding)
+
+The current scaffolding includes example tools for testing MCP connectivity:
 
 ### 1. `test_connection`
 **Purpose**: Test the MCP server connection
-**Parameters**:
-- `message` (string, optional): A test message
+**Example**: "Test the connection to the MCP scaffolding server"
 
-**Example usage**: "Test the connection to the MCP scaffolding server"
-
-### 2. `create_example_tool`
+### 2. `create_example_tool`  
 **Purpose**: Create a new example tool (demonstrates data creation)
-**Parameters**:
-- `name` (string, required): The name of the tool
-- `description` (string, optional): Description of the tool
-- `category` (string, optional): Category (default: "general")
-
-**Example usage**: "Create an example tool called 'data-processor' with description 'Processes user data' in the utility category"
+**Example**: "Create an example tool called 'my-first-tool'"
 
 ### 3. `get_example_data`
-**Purpose**: Retrieve example data from the server (demonstrates data retrieval)
-**Parameters**:
-- `data_type` (string, optional): Type of data to retrieve (default: "all")
-- `limit` (integer, optional): Maximum number of items (default: 10)
+**Purpose**: Retrieve example data from the server
+**Example**: "Get some example data from the scaffolding server"
 
-**Example usage**: "Get example data of type 'text' with a limit of 5"
+> **Note**: These example tools will be replaced with terminal functionality as development progresses.
 
-> **Note**: These are example tools for demonstration purposes. Replace them with your actual business logic when building your MCP server.
+## 🚧 Development Workflow
 
-## Customizing Your MCP Server
-
-### 1. Replace Example Code
-
-The scaffolding includes example handlers and models that you should replace:
-
-- `src/mcp_scaffolding/handlers/example_handlers.py` - Replace with your MCP tool logic
-- `src/mcp_scaffolding/models/example_models.py` - Replace with your data models
-- `tests/unit/test_example_*.py` - Update tests for your code
-
-### 2. Add New MCP Tools
-
-To add a new MCP tool:
-
-1. **Create handler function** in `handlers/` directory
-2. **Register the tool** in `server.py` using `@self.mcp.tool()` decorator
-3. **Add tests** for your new tool
-4. **Update configuration** if needed
-
-Example:
-```python
-@self.mcp.tool()
-async def my_new_tool(param1: str, param2: int = 10) -> str:
-    """Description of what this tool does."""
-    result = await my_new_tool_handler(param1, param2)
-    return result
-```
-
-### 3. Configuration Management
-
-Update `config/config.yaml` for your needs:
-
-```yaml
-server:
-  name: "my-mcp-server"
-  description: "My custom MCP server"
-
-application:
-  my_setting: "my_value"
-  api_timeout: 30
-
-external_services:
-  my_api:
-    base_url: "https://api.example.com"
-    timeout: 30
-```
-
-### 4. Environment Variables
-
-Add your API keys and secrets to `.env`:
-
-```bash
-# Copy from template
-cp env.example .env
-
-# Edit with your values
-MY_API_KEY=your_api_key_here
-DATABASE_URL=sqlite:///./data.db
-```
-
-## Development Workflow
-
-### Code Quality
-
-This project enforces code quality with:
+### Code Quality Standards
 - **Black**: Code formatting
-- **isort**: Import sorting
+- **isort**: Import sorting  
 - **flake8**: Linting
 - **mypy**: Type checking
 - **bandit**: Security scanning
-- **pre-commit**: Automated checks
+- **pytest**: >90% test coverage
 
-```bash
-# Format code
-black src tests
-
-# Sort imports
-isort src tests
-
-# Lint code
-flake8 src tests
-
-# Type check
-mypy src
-
-# Security scan
-bandit -r src
-```
-
-### Testing
-
+### Testing Strategy
 ```bash
 # Run all tests
 pytest
@@ -261,209 +173,40 @@ pytest
 # Run with coverage
 pytest --cov=src --cov-report=html
 
-# Run specific test types
-pytest -m unit
-pytest -m integration
-pytest -m "not slow"
+# Run unit tests only
+pytest tests/unit/
 
-# Run tests with verbose output
-pytest -v
-
-# Run specific test file
-pytest tests/unit/test_example_handlers.py
+# Run integration tests
+pytest tests/integration/
 ```
 
-### Pre-commit Hooks
+### Task Management
+- Follow the [Task List](tasks/tasks-prd-terminal-mcp-server.md) for implementation order
+- Use Test-Driven Development (TDD) approach
+- One sub-task at a time with user approval
+- Mark tasks complete only after tests pass
 
-Pre-commit hooks automatically run quality checks:
+## 🎯 Success Metrics
 
-```bash
-# Install hooks
-pre-commit install
+- **Functionality**: 100% of PRD requirements implemented
+- **Performance**: <100ms command execution latency
+- **Reliability**: >99% successful command execution rate
+- **Integration**: Seamless AI Coding Agent integration
+- **Testing**: >90% code coverage with comprehensive edge cases
 
-# Run hooks manually
-pre-commit run --all-files
+## 🤝 Contributing
 
-# Skip hooks (not recommended)
-git commit --no-verify
-```
+This project follows a structured development approach:
 
-## MCP Tool Development
+1. **Review the PRD**: Understand requirements in [prd-terminal-mcp-server.md](tasks/prd-terminal-mcp-server.md)
+2. **Follow Task List**: Work through [tasks-prd-terminal-mcp-server.md](tasks/tasks-prd-terminal-mcp-server.md)
+3. **Test-Driven Development**: Write tests first, then implement
+4. **One Task at a Time**: Complete tasks sequentially with approval
 
-### Handler Pattern
+## 📄 License
 
-Follow this pattern for MCP tool handlers:
+MIT License - see [LICENSE](LICENSE) file for details.
 
-```python
-async def my_tool_handler(
-    param1: str,
-    param2: Optional[int] = None,
-) -> str:
-    """
-    Handler function for MCP tool.
+---
 
-    Args:
-        param1: Description of parameter
-        param2: Optional parameter with default
-
-    Returns:
-        JSON string with result
-    """
-    logger.info(f"my_tool_handler called with param1={param1}")
-
-    try:
-        # Your business logic here
-        result = await some_async_operation(param1, param2)
-
-        return json.dumps({
-            "success": True,
-            "data": result,
-        })
-    except Exception as e:
-        logger.error(f"my_tool_handler failed: {e}")
-        return json.dumps({
-            "success": False,
-            "error": str(e),
-        })
-```
-
-### Model Validation
-
-Use Pydantic models for data validation:
-
-```python
-from pydantic import BaseModel, Field, validator
-
-class MyDataModel(BaseModel):
-    name: str = Field(..., min_length=1, max_length=100)
-    value: int = Field(..., ge=0, le=1000)
-    category: str = Field(default="general")
-
-    @validator('category')
-    def validate_category(cls, v):
-        allowed = ['general', 'special', 'admin']
-        if v not in allowed:
-            raise ValueError(f'Category must be one of: {allowed}')
-        return v
-```
-
-### Error Handling
-
-Use consistent error handling:
-
-```python
-try:
-    # Your code here
-    result = await operation()
-    return json.dumps({"success": True, "data": result})
-except ValidationError as e:
-    return json.dumps({"success": False, "error": f"Validation error: {e}"})
-except Exception as e:
-    logger.error(f"Unexpected error: {e}")
-    return json.dumps({"success": False, "error": "Internal server error"})
-```
-
-## Deployment
-
-### Environment Setup
-
-1. **Production environment**:
-   ```bash
-   cp env.example .env
-   # Edit .env with production values
-   ```
-
-2. **Install production dependencies**:
-   ```bash
-   pip install .
-   ```
-
-3. **Run server**:
-   ```bash
-   python -m mcp_scaffolding.server --config config/production.yaml
-   ```
-
-### Docker Deployment
-
-Create a `Dockerfile`:
-
-```dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-COPY . .
-RUN pip install .
-
-EXPOSE 8000
-CMD ["python", "-m", "mcp_scaffolding.server"]
-```
-
-### Systemd Service
-
-Create a systemd service file:
-
-```ini
-[Unit]
-Description=MCP Scaffolding Server
-After=network.target
-
-[Service]
-Type=simple
-User=mcp
-WorkingDirectory=/opt/mcp-server
-ExecStart=/opt/mcp-server/venv/bin/python -m mcp_scaffolding.server
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests and quality checks
-5. Submit a pull request
-
-### Development Setup
-
-```bash
-# Clone your fork
-git clone <your-fork-url>
-cd mcp-scaffolding
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate
-
-# Install in development mode
-pip install -e ".[dev]"
-
-# Install pre-commit hooks
-pre-commit install
-
-# Run tests
-pytest
-```
-
-## License
-
-MIT License - see LICENSE file for details.
-
-## Support
-
-- Create issues for bugs or feature requests
-- Check existing issues for solutions
-- Contribute improvements via pull requests
-
-## Changelog
-
-### v0.1.0
-- Initial scaffolding release
-- FastMCP integration
-- Modern Python packaging
-- Comprehensive testing setup
-- Code quality tooling
-- Configuration management
-- Authentication utilities
+**🚀 Coming Soon**: Full terminal access for AI agents with real-time command execution, background process management, and comprehensive Python integration!
