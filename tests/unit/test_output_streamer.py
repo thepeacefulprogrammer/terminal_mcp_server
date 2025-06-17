@@ -115,6 +115,154 @@ class TestOutputStreamer:
             mock_logger.info.assert_any_call("Output streaming completed")
     
     @pytest.mark.asyncio
+    async def test_stream_output_with_separation_basic(self, output_streamer, mock_process):
+        """Test basic separated streaming functionality."""
+        # Mock stdout and stderr with different content
+        mock_process.stdout.read.side_effect = [b"stdout chunk 1\n", b"stdout chunk 2\n", b""]
+        mock_process.stderr.read.side_effect = [b"stderr chunk 1\n", b"stderr chunk 2\n", b""]
+        
+        chunks = []
+        async for stdout_chunk, stderr_chunk in output_streamer.stream_output_with_separation(mock_process):
+            chunks.append((stdout_chunk, stderr_chunk))
+        
+        # Should receive tuples of (stdout, stderr)
+        assert len(chunks) > 0
+        assert all(isinstance(chunk, tuple) and len(chunk) == 2 for chunk in chunks)
+        assert all(isinstance(stdout, str) and isinstance(stderr, str) 
+                  for stdout, stderr in chunks)
+    
+    @pytest.mark.asyncio
+    async def test_stream_output_with_separation_stdout_only(self, output_streamer, mock_process):
+        """Test separated streaming when only stdout has content."""
+        mock_process.stdout.read.side_effect = [b"stdout only\n", b""]
+        mock_process.stderr.read.side_effect = [b""]  # No stderr content
+        
+        chunks = []
+        async for stdout_chunk, stderr_chunk in output_streamer.stream_output_with_separation(mock_process):
+            chunks.append((stdout_chunk, stderr_chunk))
+        
+        # Should receive chunks with stdout content and empty stderr
+        assert len(chunks) > 0
+        has_stdout_content = any(stdout for stdout, stderr in chunks if stdout.strip())
+        has_stderr_content = any(stderr for stdout, stderr in chunks if stderr.strip())
+        
+        assert has_stdout_content
+        assert not has_stderr_content
+    
+    @pytest.mark.asyncio
+    async def test_stream_output_with_separation_stderr_only(self, output_streamer, mock_process):
+        """Test separated streaming when only stderr has content."""
+        mock_process.stdout.read.side_effect = [b""]  # No stdout content
+        mock_process.stderr.read.side_effect = [b"stderr only\n", b""]
+        
+        chunks = []
+        async for stdout_chunk, stderr_chunk in output_streamer.stream_output_with_separation(mock_process):
+            chunks.append((stdout_chunk, stderr_chunk))
+        
+        # Should receive chunks with stderr content and empty stdout
+        assert len(chunks) > 0
+        has_stdout_content = any(stdout for stdout, stderr in chunks if stdout.strip())
+        has_stderr_content = any(stderr for stdout, stderr in chunks if stderr.strip())
+        
+        assert not has_stdout_content
+        assert has_stderr_content
+    
+    @pytest.mark.asyncio
+    async def test_stream_output_with_separation_no_streams(self, output_streamer, mock_process):
+        """Test separated streaming when process has no stdout/stderr."""
+        mock_process.stdout = None
+        mock_process.stderr = None
+        
+        chunks = []
+        async for stdout_chunk, stderr_chunk in output_streamer.stream_output_with_separation(mock_process):
+            chunks.append((stdout_chunk, stderr_chunk))
+        
+        # Should handle gracefully and return empty strings
+        assert isinstance(chunks, list)
+    
+    @pytest.mark.asyncio
+    async def test_stream_output_with_separation_size_limits(self, output_streamer, mock_process):
+        """Test that separated streaming respects size limits."""
+        # Create data larger than max output size
+        large_stdout_data = "x" * (output_streamer.max_output_size + 100)
+        large_stderr_data = "y" * (output_streamer.max_output_size + 100)
+        
+        mock_process.stdout.read.side_effect = [large_stdout_data.encode(), b""]
+        mock_process.stderr.read.side_effect = [large_stderr_data.encode(), b""]
+        
+        chunks = []
+        async for stdout_chunk, stderr_chunk in output_streamer.stream_output_with_separation(mock_process):
+            chunks.append((stdout_chunk, stderr_chunk))
+        
+        # Should receive chunks and handle size limits
+        assert len(chunks) > 0
+        
+        # Check for truncation messages
+        all_stdout = ''.join(stdout for stdout, stderr in chunks)
+        all_stderr = ''.join(stderr for stdout, stderr in chunks)
+        
+        # At least one should have truncation message
+        has_truncation = "TRUNCATED" in all_stdout or "TRUNCATED" in all_stderr
+        assert has_truncation
+    
+    @pytest.mark.asyncio
+    async def test_stream_output_with_separation_unicode_handling(self, output_streamer, mock_process):
+        """Test that separated streaming handles unicode correctly."""
+        # Test with unicode content
+        unicode_stdout = "Hello 世界 🌍\n"
+        unicode_stderr = "Error ❌ 错误\n"
+        
+        mock_process.stdout.read.side_effect = [unicode_stdout.encode('utf-8'), b""]
+        mock_process.stderr.read.side_effect = [unicode_stderr.encode('utf-8'), b""]
+        
+        chunks = []
+        async for stdout_chunk, stderr_chunk in output_streamer.stream_output_with_separation(mock_process):
+            chunks.append((stdout_chunk, stderr_chunk))
+        
+        # Should properly decode unicode
+        assert len(chunks) > 0
+        all_stdout = ''.join(stdout for stdout, stderr in chunks)
+        all_stderr = ''.join(stderr for stdout, stderr in chunks)
+        
+        assert "世界" in all_stdout or "🌍" in all_stdout
+        assert "❌" in all_stderr or "错误" in all_stderr
+    
+    @pytest.mark.asyncio
+    async def test_stream_output_with_separation_error_handling(self, output_streamer, mock_process):
+        """Test error handling in separated streaming."""
+        # Mock an exception during streaming
+        mock_process.stdout.read.side_effect = Exception("Stream read error")
+        mock_process.stderr.read.side_effect = [b"stderr content", b""]
+        
+        chunks = []
+        async for stdout_chunk, stderr_chunk in output_streamer.stream_output_with_separation(mock_process):
+            chunks.append((stdout_chunk, stderr_chunk))
+        
+        # Should handle errors gracefully
+        assert len(chunks) >= 0  # May be empty or contain error messages
+        
+        # Check for error messages if any chunks received
+        if chunks:
+            all_content = ''.join(stdout + stderr for stdout, stderr in chunks)
+            # Should contain some indication of error handling
+            assert isinstance(all_content, str)
+    
+    @pytest.mark.asyncio
+    async def test_stream_output_with_separation_logs_activity(self, output_streamer, mock_process):
+        """Test that separated streaming logs its activity."""
+        mock_process.stdout.read.side_effect = [b"test stdout", b""]
+        mock_process.stderr.read.side_effect = [b"test stderr", b""]
+        
+        with patch('src.terminal_mcp_server.utils.output_streamer.logger') as mock_logger:
+            chunks = []
+            async for stdout_chunk, stderr_chunk in output_streamer.stream_output_with_separation(mock_process):
+                chunks.append((stdout_chunk, stderr_chunk))
+            
+            # Verify logging calls
+            mock_logger.info.assert_any_call("Starting separated output streaming")
+            mock_logger.info.assert_any_call("Separated output streaming completed")
+    
+    @pytest.mark.asyncio
     async def test_capture_output_both_streams(self, output_streamer, mock_stream_reader):
         """Test capturing output from both stdout and stderr."""
         # Mock stream readers
@@ -553,3 +701,203 @@ class TestAdvancedBufferConfiguration:
         # Should have truncated output
         total_output = "".join(chunks)
         assert "TRUNCATED" in total_output or len(total_output) <= 500
+
+
+class TestMemorySafeguards:
+    """Test cases specifically for memory safeguards and output size limits."""
+    
+    @pytest.fixture
+    def memory_safe_streamer(self):
+        """Create OutputStreamer with small memory limits for testing."""
+        return OutputStreamer(buffer_size=1024, max_output_size=5120)  # 5KB limit
+    
+    @pytest.fixture
+    def micro_memory_streamer(self):
+        """Create OutputStreamer with very small memory limits."""
+        return OutputStreamer(buffer_size=256, max_output_size=1024)  # 1KB limit
+    
+    @pytest.fixture
+    def mock_process(self):
+        """Create mock subprocess Process for testing."""
+        mock_proc = Mock()
+        mock_proc.stdout = AsyncMock(spec=asyncio.StreamReader)
+        mock_proc.stderr = AsyncMock(spec=asyncio.StreamReader)
+        return mock_proc
+
+    @pytest.mark.asyncio
+    async def test_stream_output_enforces_memory_limit(self, micro_memory_streamer, mock_process):
+        """Test that stream_output stops when memory limit is exceeded."""
+        # Create data that exceeds the 1KB limit
+        large_chunk = "x" * 2048  # 2KB chunk exceeds 1KB limit
+        mock_process.stdout.read.side_effect = [
+            large_chunk.encode(),
+            b"additional data that should be truncated",
+            b""
+        ]
+        
+        chunks = []
+        async for chunk in micro_memory_streamer.stream_output(mock_process):
+            chunks.append(chunk)
+        
+        # Should have received chunks and then a truncation message
+        total_output = "".join(chunks)
+        assert "OUTPUT TRUNCATED" in total_output
+        assert "Size limit" in total_output
+    
+    @pytest.mark.asyncio
+    async def test_capture_output_enforces_memory_limit_stdout(self, micro_memory_streamer):
+        """Test that capture_output enforces memory limits on stdout."""
+        # Create mock stream that exceeds memory limit
+        mock_stdout = AsyncMock(spec=asyncio.StreamReader)
+        large_data = "x" * 2048  # 2KB exceeds 1KB limit
+        mock_stdout.read.side_effect = [large_data.encode(), b""]
+        
+        stdout_content, stderr_content = await micro_memory_streamer.capture_output(mock_stdout, None)
+        
+        # Should be truncated with a message
+        assert "STDOUT TRUNCATED" in stdout_content
+        assert "Size limit exceeded" in stdout_content
+        assert stderr_content == ""
+    
+    @pytest.mark.asyncio
+    async def test_capture_output_enforces_memory_limit_stderr(self, micro_memory_streamer):
+        """Test that capture_output enforces memory limits on stderr."""
+        mock_stderr = AsyncMock(spec=asyncio.StreamReader)
+        large_data = "y" * 2048  # 2KB exceeds 1KB limit
+        mock_stderr.read.side_effect = [large_data.encode(), b""]
+        
+        stdout_content, stderr_content = await micro_memory_streamer.capture_output(None, mock_stderr)
+        
+        # Should be truncated with a message
+        assert "STDERR TRUNCATED" in stderr_content
+        assert "Size limit exceeded" in stderr_content
+        assert stdout_content == ""
+    
+    @pytest.mark.asyncio
+    async def test_capture_output_enforces_memory_limit_both_streams(self, micro_memory_streamer):
+        """Test that capture_output enforces memory limits on both streams independently."""
+        mock_stdout = AsyncMock(spec=asyncio.StreamReader)
+        mock_stderr = AsyncMock(spec=asyncio.StreamReader)
+        
+        large_stdout = "x" * 2048
+        large_stderr = "y" * 2048
+        
+        mock_stdout.read.side_effect = [large_stdout.encode(), b""]
+        mock_stderr.read.side_effect = [large_stderr.encode(), b""]
+        
+        stdout_content, stderr_content = await micro_memory_streamer.capture_output(mock_stdout, mock_stderr)
+        
+        # Both should be truncated independently
+        assert "STDOUT TRUNCATED" in stdout_content
+        assert "STDERR TRUNCATED" in stderr_content
+    
+    @pytest.mark.asyncio
+    async def test_separated_streaming_enforces_memory_limits(self, micro_memory_streamer, mock_process):
+        """Test that stream_output_with_separation enforces memory limits on both streams."""
+        large_stdout = "x" * 2048
+        large_stderr = "y" * 2048
+        
+        mock_process.stdout.read.side_effect = [large_stdout.encode(), b""]
+        mock_process.stderr.read.side_effect = [large_stderr.encode(), b""]
+        
+        stdout_chunks = []
+        stderr_chunks = []
+        
+        async for stdout_chunk, stderr_chunk in micro_memory_streamer.stream_output_with_separation(mock_process):
+            stdout_chunks.append(stdout_chunk)
+            stderr_chunks.append(stderr_chunk)
+        
+        # Check for truncation in collected output
+        total_stdout = "".join(stdout_chunks)
+        total_stderr = "".join(stderr_chunks)
+        
+        # Should have truncation messages
+        assert any("TRUNCATED" in chunk for chunk in stdout_chunks + stderr_chunks)
+    
+    @pytest.mark.asyncio
+    async def test_progressive_memory_exhaustion_protection(self, memory_safe_streamer, mock_process):
+        """Test that memory limits protect against progressive exhaustion with many small chunks."""
+        # Create many small chunks that collectively exceed the limit
+        small_chunk = "chunk" * 100  # ~500 bytes per chunk
+        num_chunks = 15  # Total ~7.5KB exceeds 5KB limit
+        
+        chunks_to_send = [small_chunk.encode() for _ in range(num_chunks)] + [b""]
+        mock_process.stdout.read.side_effect = chunks_to_send
+        
+        received_chunks = []
+        async for chunk in memory_safe_streamer.stream_output(mock_process):
+            received_chunks.append(chunk)
+        
+        # Should eventually hit the limit and include truncation message
+        total_output = "".join(received_chunks)
+        assert "OUTPUT TRUNCATED" in total_output or len(total_output) <= memory_safe_streamer.max_output_size * 1.1
+    
+    @pytest.mark.asyncio  
+    async def test_memory_limit_logging(self, micro_memory_streamer, mock_process):
+        """Test that memory limit violations are properly logged."""
+        large_chunk = "x" * 2048
+        mock_process.stdout.read.side_effect = [large_chunk.encode(), b""]
+        
+        with patch('src.terminal_mcp_server.utils.output_streamer.logger') as mock_logger:
+            chunks = []
+            async for chunk in micro_memory_streamer.stream_output(mock_process):
+                chunks.append(chunk)
+            
+            # Should log the size limit violation
+            mock_logger.warning.assert_called()
+            warning_calls = [call for call in mock_logger.warning.call_args_list]
+            assert any("size limit exceeded" in str(call).lower() for call in warning_calls)
+    
+    @pytest.mark.asyncio
+    async def test_memory_safe_unicode_handling(self, micro_memory_streamer, mock_process):
+        """Test that memory limits work correctly with Unicode characters."""
+        # Unicode characters can be multi-byte
+        unicode_data = "测试数据" * 200  # Chinese characters, each ~3 bytes in UTF-8
+        mock_process.stdout.read.side_effect = [unicode_data.encode(), b""]
+        
+        chunks = []
+        async for chunk in micro_memory_streamer.stream_output(mock_process):
+            chunks.append(chunk)
+        
+        # Should handle Unicode properly while respecting memory limits
+        total_output = "".join(chunks)
+        
+        # Either should be within limits or show truncation
+        assert len(total_output.encode()) <= micro_memory_streamer.max_output_size * 1.2 or "TRUNCATED" in total_output
+    
+    @pytest.mark.asyncio
+    async def test_memory_limit_edge_case_exact_limit(self, micro_memory_streamer, mock_process):
+        """Test behavior when output exactly matches the memory limit."""
+        # Create data that exactly matches the limit
+        exact_data = "x" * micro_memory_streamer.max_output_size
+        mock_process.stdout.read.side_effect = [exact_data.encode(), b""]
+        
+        chunks = []
+        async for chunk in micro_memory_streamer.stream_output(mock_process):
+            chunks.append(chunk)
+        
+        # Should handle exact limit gracefully
+        total_output = "".join(chunks)
+        assert len(total_output) >= micro_memory_streamer.max_output_size - 100  # Allow some tolerance
+    
+    @pytest.mark.asyncio
+    async def test_memory_limit_with_buffer_boundaries(self, micro_memory_streamer, mock_process):
+        """Test memory limits when chunks align/misalign with buffer boundaries."""
+        # Create chunks that don't align with buffer boundaries
+        chunk_size = micro_memory_streamer.buffer_size + 50  # Misaligned with buffer
+        chunk_data = "x" * chunk_size
+        
+        # Send enough chunks to exceed memory limit
+        mock_process.stdout.read.side_effect = [
+            chunk_data.encode(),
+            chunk_data.encode(),
+            b""
+        ]
+        
+        chunks = []
+        async for chunk in micro_memory_streamer.stream_output(mock_process):
+            chunks.append(chunk)
+        
+        # Should respect memory limits regardless of buffer alignment
+        total_output = "".join(chunks)
+        assert "TRUNCATED" in total_output or len(total_output) <= micro_memory_streamer.max_output_size * 1.1

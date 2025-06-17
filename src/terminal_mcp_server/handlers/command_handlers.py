@@ -12,6 +12,7 @@ from typing import Dict, Any, Optional
 
 from ..utils.command_executor import CommandExecutor
 from ..models.terminal_models import CommandRequest, CommandResult
+from ..utils.config import load_config, find_project_directory
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,27 @@ class CommandHandlers:
     def __init__(self):
         """Initialize command handlers."""
         self.command_executor = CommandExecutor()
-        logger.info("CommandHandlers initialized")
+        
+        # Load configuration and set default working directory
+        self.config = load_config()
+        
+        # Get default working directory from config, or use project directory
+        config_default_wd = self.config.get('terminal', {}).get('execution', {}).get('default_working_directory', '.')
+        
+        if config_default_wd == '.' or not config_default_wd:
+            # Use project directory as default
+            self.default_working_directory = find_project_directory()
+        else:
+            # Use configured directory (resolve relative paths)
+            from pathlib import Path
+            if Path(config_default_wd).is_absolute():
+                self.default_working_directory = config_default_wd
+            else:
+                # Resolve relative to project directory
+                project_dir = find_project_directory()
+                self.default_working_directory = str(Path(project_dir) / config_default_wd)
+        
+        logger.info(f"CommandHandlers initialized with default working directory: {self.default_working_directory}")
     
     async def execute_command(
         self,
@@ -47,9 +68,12 @@ class CommandHandlers:
         """
         logger.info(f"Executing command: {command}")
         
+        # Use default working directory if none provided
+        effective_working_directory = working_directory or self.default_working_directory
+        
         request = CommandRequest(
             command=command,
-            working_directory=working_directory,
+            working_directory=effective_working_directory,
             environment_variables=environment_variables or {},
             timeout=timeout,
             capture_output=capture_output

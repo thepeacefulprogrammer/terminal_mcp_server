@@ -409,3 +409,113 @@ class VenvManager:
         except Exception as e:
             logger.error(f"Error installing package {package}: {e}")
             return False 
+    
+    async def install_package_with_output(
+        self,
+        package: str,
+        venv_name: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Install a Python package with detailed output information.
+        
+        Args:
+            package: Package name to install
+            venv_name: Virtual environment name (None for current)
+            
+        Returns:
+            Dict with detailed installation results including stdout, stderr, etc.
+        """
+        logger.info(f"Installing package {package} with detailed output in environment {venv_name or 'current'}")
+        
+        try:
+            # Determine pip executable to use
+            pip_exe = "pip"
+            
+            if venv_name:
+                # Find the virtual environment
+                venvs = await self.list_virtual_environments()
+                target_venv = None
+                
+                for venv in venvs:
+                    if venv.name == venv_name:
+                        target_venv = venv
+                        break
+                
+                if not target_venv:
+                    logger.error(f"Virtual environment '{venv_name}' not found")
+                    return {
+                        "success": False,
+                        "stdout": "",
+                        "stderr": f"Virtual environment '{venv_name}' not found",
+                        "returncode": 1,
+                        "execution_time": 0.0,
+                        "command": f"# Virtual environment '{venv_name}' not found"
+                    }
+                
+                # Determine pip path for the venv
+                venv_path = Path(target_venv.path)
+                if venv_path.is_file():
+                    # It's a Python executable, use it with -m pip
+                    pip_exe = f'"{venv_path}" -m pip'
+                elif venv_path.is_dir():
+                    # It's a venv directory
+                    pip_paths = [
+                        venv_path / "bin" / "pip",
+                        venv_path / "Scripts" / "pip.exe"
+                    ]
+                    for pip_path in pip_paths:
+                        if pip_path.exists():
+                            pip_exe = f'"{pip_path}"'
+                            break
+                    else:
+                        # Fallback to python -m pip
+                        python_paths = [
+                            venv_path / "bin" / "python",
+                            venv_path / "Scripts" / "python.exe"
+                        ]
+                        for python_path in python_paths:
+                            if python_path.exists():
+                                pip_exe = f'"{python_path}" -m pip'
+                                break
+            
+            # Install the package
+            install_command = f'{pip_exe} install "{package}"'
+            
+            # Record execution time
+            import time
+            start_time = time.time()
+            returncode, stdout, stderr = await self._run_command(install_command)
+            end_time = time.time()
+            execution_time = end_time - start_time
+            
+            if returncode == 0:
+                logger.info(f"Successfully installed {package} in {execution_time:.2f}s")
+                return {
+                    "success": True,
+                    "stdout": stdout,
+                    "stderr": stderr,
+                    "returncode": returncode,
+                    "execution_time": execution_time,
+                    "command": install_command
+                }
+            else:
+                logger.error(f"Failed to install {package}: {stderr}")
+                return {
+                    "success": False,
+                    "stdout": stdout,
+                    "stderr": stderr,
+                    "returncode": returncode,
+                    "execution_time": execution_time,
+                    "command": install_command
+                }
+                
+        except Exception as e:
+            logger.error(f"Error installing package {package}: {e}")
+            return {
+                "success": False,
+                "stdout": "",
+                "stderr": f"Error installing package: {str(e)}",
+                "returncode": -1,
+                "execution_time": 0.0,
+                "command": f"# Error: {str(e)}"
+            }

@@ -3,6 +3,7 @@
 import asyncio
 import logging
 from typing import AsyncGenerator, Optional, Union
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -114,9 +115,22 @@ class OutputStreamer:
                 
                 yield chunk_str
                 
+        except asyncio.CancelledError:
+            logger.info("Output streaming was cancelled")
+            yield "\n[STREAMING CANCELLED]"
+            raise
+        except UnicodeDecodeError as e:
+            logger.warning(f"Unicode decode error during streaming: {e}")
+            yield f"\n[ENCODING ERROR: {str(e)}]"
+        except MemoryError as e:
+            logger.error(f"Memory exhausted during streaming: {e}")
+            yield f"\n[MEMORY ERROR: Output too large]"
+        except OSError as e:
+            logger.error(f"I/O error during streaming: {e}")
+            yield f"\n[I/O ERROR: {str(e)}]"
         except Exception as e:
-            logger.error(f"Error during output streaming: {e}")
-            yield f"\n[STREAMING ERROR: {str(e)}]"
+            logger.error(f"Unexpected error during output streaming: {e}")
+            yield f"\n[STREAMING ERROR: {type(e).__name__}: {str(e)}]"
         
         finally:
             logger.info("Output streaming completed")
@@ -223,25 +237,29 @@ class OutputStreamer:
         logger.info("Starting separated output streaming")
         
         try:
-            stdout_task = None
-            stderr_task = None
+            # Create async generators for each stream
+            stdout_generator = None
+            stderr_generator = None
             
             if process.stdout:
-                stdout_task = asyncio.create_task(self._stream_single_output(process.stdout, "stdout"))
+                stdout_generator = self._stream_single_output(process.stdout, "stdout")
             
             if process.stderr:
-                stderr_task = asyncio.create_task(self._stream_single_output(process.stderr, "stderr"))
+                stderr_generator = self._stream_single_output(process.stderr, "stderr")
             
-            # Stream both outputs concurrently
-            if stdout_task and stderr_task:
-                async for stdout_chunk, stderr_chunk in self._merge_streams(stdout_task, stderr_task):
+            # Stream both outputs concurrently with real-time merging
+            if stdout_generator and stderr_generator:
+                async for stdout_chunk, stderr_chunk in self._merge_streams_realtime(stdout_generator, stderr_generator):
                     yield stdout_chunk, stderr_chunk
-            elif stdout_task:
-                async for chunk in stdout_task:
+            elif stdout_generator:
+                async for chunk in stdout_generator:
                     yield chunk, ""
-            elif stderr_task:
-                async for chunk in stderr_task:
+            elif stderr_generator:
+                async for chunk in stderr_generator:
                     yield "", chunk
+            else:
+                # No streams available
+                logger.warning("No stdout or stderr streams available for separated streaming")
                     
         except Exception as e:
             logger.error(f"Error during separated streaming: {e}")
@@ -251,53 +269,74 @@ class OutputStreamer:
             logger.info("Separated output streaming completed")
     
     async def _stream_single_output(self, stream: asyncio.StreamReader, stream_name: str) -> AsyncGenerator[str, None]:
-        """Stream output from a single stream."""
+        """Stream output from a single stream with proper error handling."""
         total_size = 0
         
-        while True:
-            chunk_bytes = await stream.read(self.buffer_size)
-            
-            if not chunk_bytes:
-                break
-            
-            total_size += len(chunk_bytes)
-            if total_size > self.max_output_size:
-                logger.warning(f"{stream_name} streaming size limit exceeded")
-                yield f"[{stream_name.upper()} TRUNCATED: Size limit exceeded]"
-                break
-            
-            try:
-                chunk_str = chunk_bytes.decode('utf-8', errors='replace')
-                yield chunk_str
-            except Exception as e:
-                logger.warning(f"Decode error in {stream_name} streaming: {e}")
-                yield f"[{stream_name.upper()} DECODE ERROR]"
+        try:
+            while True:
+                chunk_bytes = await stream.read(self.buffer_size)
+                
+                if not chunk_bytes:
+                    break
+                
+                total_size += len(chunk_bytes)
+                if total_size > self.max_output_size:
+                    logger.warning(f"{stream_name} streaming size limit exceeded")
+                    yield f"[{stream_name.upper()} TRUNCATED: Size limit exceeded]"
+                    break
+                
+                try:
+                    chunk_str = chunk_bytes.decode('utf-8', errors='replace')
+                    yield chunk_str
+                except Exception as e:
+                    logger.warning(f"Decode error in {stream_name} streaming: {e}")
+                    yield f"[{stream_name.upper()} DECODE ERROR]"
+                    
+        except Exception as e:
+            logger.error(f"Error streaming {stream_name}: {e}")
+            yield f"[{stream_name.upper()} STREAM ERROR: {str(e)}]"
     
-    async def _merge_streams(self, stdout_task, stderr_task) -> AsyncGenerator[tuple[str, str], None]:
-        """Merge two stream tasks into combined output."""
-        # This is a simplified implementation
-        # In a more complex implementation, you might want to interleave the streams
-        # based on timing, but for now we'll alternate between them
+    async def _merge_streams_realtime(self, stdout_generator, stderr_generator) -> AsyncGenerator[tuple[str, str], None]:
+        """
+        Merge two async generators into real-time combined output.
         
-        stdout_chunks = []
-        stderr_chunks = []
+        This simplified implementation alternates between reading from stdout and stderr,
+        yielding chunks as they become available.
+        """
+        # Convert generators to async iterators
+        stdout_iter = aiter(stdout_generator)
+        stderr_iter = aiter(stderr_generator)
         
-        # Collect all chunks (simplified approach)
-        try:
-            async for chunk in stdout_task:
-                stdout_chunks.append(chunk)
-        except Exception:
-            pass
+        # Track if streams are exhausted
+        stdout_exhausted = False
+        stderr_exhausted = False
+        
+        while not (stdout_exhausted and stderr_exhausted):
+            stdout_chunk = ""
+            stderr_chunk = ""
             
-        try:
-            async for chunk in stderr_task:
-                stderr_chunks.append(chunk)
-        except Exception:
-            pass
-        
-        # Yield combined results
-        max_len = max(len(stdout_chunks), len(stderr_chunks))
-        for i in range(max_len):
-            stdout_chunk = stdout_chunks[i] if i < len(stdout_chunks) else ""
-            stderr_chunk = stderr_chunks[i] if i < len(stderr_chunks) else ""
-            yield stdout_chunk, stderr_chunk 
+            # Try to get chunk from stdout
+            if not stdout_exhausted:
+                try:
+                    stdout_chunk = await asyncio.wait_for(anext(stdout_iter), timeout=0.01)
+                except (StopAsyncIteration, asyncio.TimeoutError):
+                    if isinstance(sys.exc_info()[1], StopAsyncIteration):
+                        stdout_exhausted = True
+                except Exception as e:
+                    logger.warning(f"Error reading stdout chunk: {e}")
+                    stdout_chunk = f"[STDOUT ERROR: {str(e)}]"
+            
+            # Try to get chunk from stderr
+            if not stderr_exhausted:
+                try:
+                    stderr_chunk = await asyncio.wait_for(anext(stderr_iter), timeout=0.01)
+                except (StopAsyncIteration, asyncio.TimeoutError):
+                    if isinstance(sys.exc_info()[1], StopAsyncIteration):
+                        stderr_exhausted = True
+                except Exception as e:
+                    logger.warning(f"Error reading stderr chunk: {e}")
+                    stderr_chunk = f"[STDERR ERROR: {str(e)}]"
+            
+            # Yield if we got any chunks
+            if stdout_chunk or stderr_chunk:
+                yield stdout_chunk, stderr_chunk 

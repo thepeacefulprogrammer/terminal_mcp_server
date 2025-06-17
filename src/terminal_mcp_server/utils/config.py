@@ -15,6 +15,44 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+def find_project_directory() -> str:
+    """
+    Find the project directory by looking for key project files.
+    
+    Returns:
+        Absolute path to the project directory
+    """
+    # Start from the current file's directory and work upward
+    current_path = Path(__file__).parent
+    
+    # Key files that indicate we're in the project root
+    project_indicators = [
+        'pyproject.toml',
+        'README.md',
+        'src/terminal_mcp_server',
+        'tasks/tasks-prd-terminal-mcp-server.md'
+    ]
+    
+    # Check up to 5 levels up from current location
+    for _ in range(5):
+        # Check if all project indicators exist
+        if all((current_path / indicator).exists() for indicator in project_indicators):
+            project_dir = str(current_path.absolute())
+            logger.info(f"Detected project directory: {project_dir}")
+            return project_dir
+        
+        # Move up one level
+        parent = current_path.parent
+        if parent == current_path:  # Reached filesystem root
+            break
+        current_path = parent
+    
+    # Fallback to current working directory
+    fallback_dir = str(Path.cwd().absolute())
+    logger.warning(f"Could not detect project directory, using current working directory: {fallback_dir}")
+    return fallback_dir
+
+
 def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
     """
     Load configuration from YAML file.

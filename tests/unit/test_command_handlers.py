@@ -62,7 +62,9 @@ class TestCommandHandlers:
             
             assert isinstance(call_args, CommandRequest)
             assert call_args.command == "echo 'test'"
-            assert call_args.working_directory is None
+            # Working directory should now be set to project directory by default
+            assert call_args.working_directory is not None
+            assert call_args.working_directory.endswith('terminal_mcp_server')
             assert call_args.environment_variables == {}
             assert call_args.timeout is None
             assert call_args.capture_output is True

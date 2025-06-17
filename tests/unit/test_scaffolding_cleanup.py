@@ -150,7 +150,8 @@ def test_only_terminal_tests_exist():
         "test_process_handlers.py",    # New process handlers tests
         "test_python_handlers.py",     # New python handlers tests
         "test_venv_manager.py",        # New venv manager tests
-        "test_environment_handlers.py" # New environment handlers tests
+        "test_environment_handlers.py", # New environment handlers tests
+        "test_working_directory.py"    # New working directory tests
     }
     
     # Get actual test files

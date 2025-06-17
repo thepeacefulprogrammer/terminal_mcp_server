@@ -1,0 +1,59 @@
+================================================================================
+MCP CLIENT COMPATIBILITY VERIFICATION REPORT
+================================================================================
+Generated: 2025-06-17T12:31:23.635857
+Expected Tools: 21
+Overall Status: ✗ FAIL
+
+TEST RESULTS SUMMARY:
+----------------------------------------
+tool_registration              ✓ PASS
+server_initialization          ✗ FAIL
+tool_docstrings                ✓ PASS
+json_response_format           ✓ PASS
+
+CLIENT COMPATIBILITY CHECKLIST:
+----------------------------------------
+□ tool_registration: All 21 tools must be registered with @mcp_server.tool() decorator
+□ response_format: All tools must return JSON strings for client compatibility
+□ error_handling: All tools must return valid JSON even on errors
+□ parameter_validation: All tools must validate parameters and provide clear error messages
+□ docstring_format: All tools must have proper docstrings with Args and Returns sections
+□ async_compatibility: All tools must be async functions for MCP client compatibility
+
+DETAILED VERIFICATION RESULTS:
+----------------------------------------
+
+TOOL_REGISTRATION:
+  total_registered: 20
+  expected_count: 20
+  registered_tools: ['execute_command', 'execute_command_background', 'list_background_processes', 'get_process_status', 'kill_background_process', 'restart_background_process', 'get_process_output', 'execute_python_script', 'execute_python_code', 'execute_python_script_with_streaming', 'execute_python_code_with_streaming', 'list_virtual_environments', 'activate_virtual_environment', 'create_virtual_environment', 'install_python_package', 'install_dependencies', 'get_current_directory', 'change_directory', 'get_environment_variables', 'set_environment_variable']
+  missing_tools: []
+  extra_tools: []
+
+SERVER_INITIALIZATION:
+  server_created: True
+  total_tools_registered: 0
+  expected_tools: 21
+  test_connection_registered: False
+  all_tools_registered: False
+  registered_tools: []
+
+TOOL_DOCSTRINGS:
+  total_tools_checked: 20
+  missing_docstrings: []
+  incomplete_docstrings: []
+
+JSON_RESPONSE_FORMAT:
+  tool_tested: execute_command
+  returns_string: True
+  json_valid: True
+  has_required_fields: True
+
+RECOMMENDATIONS:
+----------------------------------------
+• Fix failing verification tests before deploying to production
+• Test with multiple MCP client implementations
+• Verify tool accessibility through Cursor, Claude Desktop, and other clients
+
+================================================================================

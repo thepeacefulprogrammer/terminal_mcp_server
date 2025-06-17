@@ -9,6 +9,7 @@ from typing import Dict, Any, Optional, List, AsyncGenerator, Tuple
 from ..utils.command_executor import CommandExecutor
 from ..utils.venv_manager import VenvManager
 from ..models.terminal_models import CommandRequest, CommandResult
+from ..utils.config import load_config, find_project_directory
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,27 @@ class PythonHandlers:
         """Initialize Python handlers."""
         self.command_executor = CommandExecutor()
         self.venv_manager = VenvManager()
-        logger.info("PythonHandlers initialized")
+        
+        # Load configuration and set default working directory
+        self.config = load_config()
+        
+        # Get default working directory from config, or use project directory
+        config_default_wd = self.config.get('terminal', {}).get('execution', {}).get('default_working_directory', '.')
+        
+        if config_default_wd == '.' or not config_default_wd:
+            # Use project directory as default
+            self.default_working_directory = find_project_directory()
+        else:
+            # Use configured directory (resolve relative paths)
+            from pathlib import Path
+            if Path(config_default_wd).is_absolute():
+                self.default_working_directory = config_default_wd
+            else:
+                # Resolve relative to project directory
+                project_dir = find_project_directory()
+                self.default_working_directory = str(Path(project_dir) / config_default_wd)
+        
+        logger.info(f"PythonHandlers initialized with default working directory: {self.default_working_directory}")
     
     async def _get_python_executable(self, virtual_environment: Optional[str] = None) -> str:
         """
@@ -37,21 +58,35 @@ class PythonHandlers:
             try:
                 venvs = await self.venv_manager.list_virtual_environments()
                 for venv in venvs:
-                    if venv.name == virtual_environment:
-                        venv_path = Path(venv.path)
-                        if venv_path.is_file():
-                            # It's already a Python executable
-                            return str(venv_path)
-                        elif venv_path.is_dir():
-                            # It's a venv directory, find the Python executable
-                            python_paths = [
-                                venv_path / "bin" / "python",
-                                venv_path / "Scripts" / "python.exe",
-                                venv_path / "bin" / "python3"
-                            ]
-                            for python_path in python_paths:
-                                if python_path.exists():
-                                    return str(python_path)
+                    # Handle None venv objects gracefully
+                    if venv is None:
+                        continue
+                        
+                    try:
+                        # Safely access venv attributes
+                        venv_name = getattr(venv, 'name', None)
+                        if venv_name == virtual_environment:
+                            venv_path_str = getattr(venv, 'path', '')
+                            if venv_path_str:
+                                venv_path = Path(venv_path_str)
+                                if venv_path.is_file():
+                                    # It's already a Python executable
+                                    return str(venv_path)
+                                elif venv_path.is_dir():
+                                    # It's a venv directory, find the Python executable
+                                    python_paths = [
+                                        venv_path / "bin" / "python",
+                                        venv_path / "Scripts" / "python.exe",
+                                        venv_path / "bin" / "python3"
+                                    ]
+                                    for python_path in python_paths:
+                                        if python_path.exists():
+                                            return str(python_path)
+                    except Exception as attr_error:
+                        # Log but continue searching
+                        logger.debug(f"Failed to access venv attributes: {attr_error}")
+                        continue
+                        
                 # Fallback to old behavior if not found
                 return f"/home/user/.venvs/{virtual_environment}/bin/python"
             except Exception:
@@ -94,10 +129,13 @@ class PythonHandlers:
             
             command = " ".join(shlex.quote(part) for part in command_parts)
             
+            # Use default working directory if none provided
+            effective_working_directory = working_directory or self.default_working_directory
+            
             # Create command request
             request = CommandRequest(
                 command=command,
-                working_directory=working_directory,
+                working_directory=effective_working_directory,
                 environment_variables=environment_variables or {},
                 timeout=timeout,
                 capture_output=True
@@ -165,10 +203,13 @@ class PythonHandlers:
             python_exe = await self._get_python_executable(virtual_environment)
             command = f"{shlex.quote(python_exe)} -c {shlex.quote(code)}"
             
+            # Use default working directory if none provided
+            effective_working_directory = working_directory or self.default_working_directory
+            
             # Create command request
             request = CommandRequest(
                 command=command,
-                working_directory=working_directory,
+                working_directory=effective_working_directory,
                 environment_variables=environment_variables or {},
                 timeout=timeout,
                 capture_output=True
@@ -220,13 +261,24 @@ class PythonHandlers:
 
             result = []
             for venv in venvs:
-                venv_dict = {
-                    "name": venv.name,
-                    "path": venv.path,
-                    "python_version": venv.python_version,
-                    "active": venv.is_active
-                }
-                result.append(venv_dict)
+                # Handle None venv objects gracefully
+                if venv is None:
+                    logger.debug("Skipping None venv object")
+                    continue
+                
+                try:
+                    # Safely access venv attributes with proper error handling
+                    venv_dict = {
+                        "name": getattr(venv, 'name', 'unknown'),
+                        "path": getattr(venv, 'path', ''),
+                        "python_version": getattr(venv, 'python_version', 'unknown'),
+                        "active": getattr(venv, 'is_active', False)
+                    }
+                    result.append(venv_dict)
+                except Exception as attr_error:
+                    # Log but continue processing other venvs
+                    logger.warning(f"Failed to access attributes of venv object: {attr_error}")
+                    continue
             
             logger.info(f"Found {len(result)} virtual environments")
             return result
@@ -311,19 +363,41 @@ class PythonHandlers:
                 requirements=packages
             )
             
-            result = {
-                "success": True,
-                "name": venv_info.name,
-                "path": venv_info.path,
-                "python_version": venv_info.python_version
-            }
+            # Handle None return or invalid venv_info object
+            if venv_info is None:
+                logger.error(f"VenvManager returned None for venv creation: {name}")
+                return {
+                    "success": False,
+                    "name": name,
+                    "error": "Virtual environment creation returned None"
+                }
             
-            if packages:
-                # Simulate package installation
-                result["installed_packages"] = [f"{pkg}==1.0.0" for pkg in packages]
-            
-            logger.info(f"Virtual environment '{name}' created successfully")
-            return result
+            try:
+                # Test accessing attributes to see if they raise errors
+                _ = venv_info.name, venv_info.path, venv_info.python_version
+                
+                # If we get here, attributes are accessible - use safely
+                result = {
+                    "success": True,
+                    "name": getattr(venv_info, 'name', name),
+                    "path": getattr(venv_info, 'path', ''),
+                    "python_version": getattr(venv_info, 'python_version', 'unknown')
+                }
+                
+                if packages:
+                    # Simulate package installation
+                    result["installed_packages"] = [f"{pkg}==1.0.0" for pkg in packages]
+                
+                logger.info(f"Virtual environment '{name}' created successfully")
+                return result
+                
+            except Exception as attr_error:
+                logger.error(f"Failed to access venv_info attributes: {attr_error}")
+                return {
+                    "success": False,
+                    "name": name,
+                    "error": f"Invalid venv_info object: {str(attr_error)}"
+                }
             
         except Exception as e:
             logger.error(f"Failed to create virtual environment {name}: {e}")
@@ -339,38 +413,96 @@ class PythonHandlers:
         virtual_environment: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Install a Python package.
+        Install a Python package with detailed pip output.
         
         Args:
             package: Package name to install (can include version)
             virtual_environment: Virtual environment to install in
             
         Returns:
-            Dict with installation result
+            Dict with installation result including detailed pip output
         """
         logger.info(f"Installing Python package: {package}")
         
         try:
-            success = await self.venv_manager.install_package(
-                package=package,
-                venv_name=virtual_environment
-            )
-            
-            if success:
-                # Simulate successful installation
-                return {
-                    "success": True,
-                    "package": f"{package}==2.28.2" if "==" not in package else package,
-                    "virtual_environment": virtual_environment or "system",
-                    "installation_output": f"Successfully installed {package}"
-                }
+            # Try to use enhanced method with detailed output first
+            if hasattr(self.venv_manager, 'install_package_with_output'):
+                install_result = await self.venv_manager.install_package_with_output(
+                    package=package,
+                    venv_name=virtual_environment
+                )
+                
+                # Handle None result
+                if install_result is None:
+                    logger.error(f"install_package_with_output returned None for package: {package}")
+                    return {
+                        "success": False,
+                        "package": package,
+                        "virtual_environment": virtual_environment or "system",
+                        "error": "Package installation returned None result"
+                    }
+                
+                # Safely access result attributes with defaults
+                try:
+                    success = install_result.get("success", False)
+                    if success:
+                        return {
+                            "success": True,
+                            "package": package,
+                            "virtual_environment": virtual_environment or "system",
+                            "installation_output": install_result.get("stdout", ""),
+                            "execution_time": install_result.get("execution_time", 0.0),
+                            "command": install_result.get("command", ""),
+                            "stderr": install_result.get("stderr") if install_result.get("stderr") else None
+                        }
+                    else:
+                        return {
+                            "success": False,
+                            "package": package,
+                            "virtual_environment": virtual_environment or "system",
+                            "error": install_result.get("stderr") or install_result.get("stdout") or "Installation failed",
+                            "execution_time": install_result.get("execution_time", 0.0),
+                            "command": install_result.get("command", "")
+                        }
+                except (AttributeError, TypeError) as access_error:
+                    logger.error(f"Failed to access install_result attributes: {access_error}")
+                    return {
+                        "success": False,
+                        "package": package,
+                        "virtual_environment": virtual_environment or "system",
+                        "error": f"Malformed installation result: {str(access_error)}"
+                    }
             else:
-                return {
-                    "success": False,
-                    "package": package,
-                    "virtual_environment": virtual_environment or "system",
-                    "error": f"Failed to install package '{package}'"
-                }
+                # Fallback to basic method for backward compatibility
+                success = await self.venv_manager.install_package(
+                    package=package,
+                    venv_name=virtual_environment
+                )
+                
+                # Handle None return from basic method
+                if success is None:
+                    logger.warning(f"Basic install_package returned None for package: {package}")
+                    return {
+                        "success": False,
+                        "package": package,
+                        "virtual_environment": virtual_environment or "system",
+                        "error": "Package installation returned None (basic mode)"
+                    }
+                
+                if success:
+                    return {
+                        "success": True,
+                        "package": package,
+                        "virtual_environment": virtual_environment or "system",
+                        "installation_output": f"Successfully installed {package} (basic mode)"
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "package": package,
+                        "virtual_environment": virtual_environment or "system",
+                        "error": f"Failed to install package '{package}'"
+                    }
                 
         except Exception as e:
             logger.error(f"Error installing package {package}: {e}")
