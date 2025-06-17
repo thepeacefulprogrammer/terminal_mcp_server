@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-MCP Scaffolding Server using FastMCP
+Terminal MCP Server using FastMCP
 
-This is a template FastMCP server implementation that follows modern Python
-best practices and provides a solid foundation for building MCP servers.
+This server provides comprehensive terminal command execution capabilities for MCP clients.
+It enables AI agents to execute terminal commands, manage processes, and run Python scripts.
 """
 
 import argparse
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 # Log startup information
 logger.info("=" * 60)
-logger.info("MCP SCAFFOLDING SERVER STARTUP")
+logger.info("TERMINAL MCP SERVER STARTUP")
 logger.info("=" * 60)
 logger.info(f"Python executable: {sys.executable}")
 logger.info(f"Python version: {sys.version}")
@@ -74,8 +74,8 @@ except ImportError as e:
 
 # Import our modules
 try:
-    from mcp_scaffolding.utils.auth import load_auth_config
-    from mcp_scaffolding.utils.config import load_config
+    from terminal_mcp_server.utils.auth import load_auth_config
+    from terminal_mcp_server.utils.config import load_config
 
     logger.info("Successfully imported utility modules")
 except ImportError as e:
@@ -84,15 +84,16 @@ except ImportError as e:
     sys.exit(1)
 
 try:
-    from mcp_scaffolding.handlers.example_handlers import (
-        create_example_tool_handler,
-        get_example_data_handler,
-        initialize_example_handlers,
+    from terminal_mcp_server.handlers import (
+        command_handlers,
+        process_handlers,
+        python_handlers,
+        environment_handlers,
     )
 
-    logger.info("Successfully imported example handlers")
+    logger.info("Successfully imported terminal handlers")
 except ImportError as e:
-    logger.error(f"Failed to import example handlers: {e}")
+    logger.error(f"Failed to import terminal handlers: {e}")
     logger.error(f"Traceback: {traceback.format_exc()}")
     sys.exit(1)
 
@@ -101,11 +102,11 @@ load_dotenv()
 logger.info("Environment variables loaded")
 
 
-class MCPScaffoldingServer:
-    """MCP Scaffolding Server using FastMCP."""
+class TerminalMCPServer:
+    """Terminal MCP Server using FastMCP."""
 
     def __init__(self, config_path: str = None):
-        logger.info("Initializing MCPScaffoldingServer...")
+        logger.info("Initializing TerminalMCPServer...")
 
         try:
             self.config = load_config(config_path)
@@ -125,7 +126,7 @@ class MCPScaffoldingServer:
 
         try:
             # Initialize FastMCP Server
-            server_name = self.config.get("server", {}).get("name", "mcp-scaffolding")
+            server_name = self.config.get("server", {}).get("name", "terminal-mcp-server")
             self.mcp = FastMCP(server_name)
             logger.info("FastMCP server created successfully")
         except Exception as e:
@@ -151,7 +152,7 @@ class MCPScaffoldingServer:
             logger.error(f"Traceback: {traceback.format_exc()}")
             raise
 
-        logger.info("MCPScaffoldingServer initialization complete")
+        logger.info("TerminalMCPServer initialization complete")
 
     def _setup_logging(self):
         """Setup logging based on configuration."""
@@ -159,11 +160,11 @@ class MCPScaffoldingServer:
         level = getattr(logging, log_config.get("level", "INFO"))
 
         logging.getLogger().setLevel(level)
-        logger.info("MCP Scaffolding Server logging initialized")
+        logger.info("Terminal MCP Server logging initialized")
 
     def _init_sync_components(self):
         """Initialize components that can be done synchronously."""
-        logger.info("Initializing MCP Scaffolding Server components...")
+        logger.info("Initializing Terminal MCP Server components...")
 
         # Initialize auth config
         try:
@@ -198,94 +199,83 @@ class MCPScaffoldingServer:
             """Test the MCP server connection."""
             logger.info(f"test_connection called with message: {message}")
             await self._ensure_async_initialized()
-            return f"✅ MCP Scaffolding Server is running! Message: {message}"
 
-        # Example tool - replace with your actual tools
+            return f"Terminal MCP Server is running! Message: {message}"
+
+        # Terminal command execution tool (placeholder)
         @self.mcp.tool()
-        async def create_example_tool(
-            name: str,
-            description: str = "",
-            category: str = "general",
+        async def execute_command(
+            command: str,
+            working_directory: str = None,
+            timeout: int = None,
         ) -> str:
-            """Create an example tool with the given parameters.
+            """
+            Execute a terminal command.
 
             Args:
-                name: The name of the tool
-                description: Optional description of the tool
-                category: The category of the tool (default: general)
+                command: The command to execute
+                working_directory: Directory to run the command in
+                timeout: Command timeout in seconds
+
+            Returns:
+                JSON string with the command result
             """
-            logger.info(f"create_example_tool called with name: {name}")
+            logger.info(f"execute_command called: command={command}")
             await self._ensure_async_initialized()
 
-            try:
-                result = await create_example_tool_handler(
-                    name=name,
-                    description=description,
-                    category=category,
-                )
-                logger.info(f"create_example_tool completed successfully")
-                return result
-            except Exception as e:
-                logger.error(f"create_example_tool failed: {e}")
-                logger.error(f"Traceback: {traceback.format_exc()}")
-                return f"❌ Error creating example tool: {str(e)}"
+            # Placeholder implementation - will be implemented in later tasks
+            return f"Command '{command}' executed successfully (placeholder)"
 
-        # Example data retrieval tool
+        # Background process management tool (placeholder)
         @self.mcp.tool()
-        async def get_example_data(
-            data_type: str = "all",
-            limit: int = 10,
+        async def start_background_process(
+            command: str,
+            working_directory: str = None,
         ) -> str:
-            """Get example data from the server.
+            """
+            Start a background process.
 
             Args:
-                data_type: Type of data to retrieve (default: all)
-                limit: Maximum number of items to return (default: 10)
+                command: The command to run in background
+                working_directory: Directory to run the command in
+
+            Returns:
+                JSON string with the process information
             """
-            logger.info(f"get_example_data called with data_type: {data_type}")
+            logger.info(f"start_background_process called: command={command}")
             await self._ensure_async_initialized()
 
-            try:
-                result = await get_example_data_handler(
-                    data_type=data_type,
-                    limit=limit,
-                )
-                logger.info(f"get_example_data completed successfully")
-                return result
-            except Exception as e:
-                logger.error(f"get_example_data failed: {e}")
-                logger.error(f"Traceback: {traceback.format_exc()}")
-                return f"❌ Error retrieving example data: {str(e)}"
+            # Placeholder implementation - will be implemented in later tasks
+            return f"Background process '{command}' started successfully (placeholder)"
 
-        logger.info("Tool registration complete")
+        logger.info("MCP tools registered successfully")
 
     def run(self):
         """Run the MCP server."""
-        logger.info("Starting MCP Scaffolding Server...")
-        # FastMCP handles the asyncio event loop internally
+        logger.info("Starting Terminal MCP Server...")
         self.mcp.run()
 
 
 def main():
     """Main entry point for the MCP server."""
-    parser = argparse.ArgumentParser(description="MCP Scaffolding Server")
+    parser = argparse.ArgumentParser(description="Terminal MCP Server")
     parser.add_argument(
         "--config",
         "-c",
-        type=str,
-        help="Path to configuration file",
         default=None,
+        help="Path to configuration file",
     )
+
     args = parser.parse_args()
 
     try:
-        server = MCPScaffoldingServer(config_path=args.config)
+        server = TerminalMCPServer(config_path=args.config)
         server.run()
     except KeyboardInterrupt:
         logger.info("Server interrupted by user")
         sys.exit(0)
     except Exception as e:
-        logger.error(f"Server failed: {e}")
+        logger.error(f"Server failed to start: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         sys.exit(1)
 

@@ -62,10 +62,10 @@ setup-hooks:
 
 # Server operations
 run:
-	python -m mcp_scaffolding.server
+	python -m terminal_mcp_server.server
 
 run-config:
-	python -m mcp_scaffolding.server --config config/config.yaml
+	python -m terminal_mcp_server.server --config config/config.yaml
 
 # Utility
 clean:

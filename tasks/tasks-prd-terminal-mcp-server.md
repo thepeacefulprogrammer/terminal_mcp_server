@@ -2,18 +2,35 @@
 
 ## Relevant Files
 
-- `requirements.txt` - Update with new dependencies for terminal operations and process management.
-- `src/terminal_mcp_server/__init__.py` - Main module initialization (rename from mcp_scaffolding).
-- `src/terminal_mcp_server/server.py` - Main MCP server implementation with terminal-specific tools.
-- `src/terminal_mcp_server/handlers/command_handlers.py` - Core command execution handlers.
+- `requirements.txt` - Updated with new dependencies for terminal operations and process management (psutil, aiofiles).
+- `tests/unit/test_requirements.py` - Unit tests to validate required dependencies are present in requirements.txt.
+- `tests/unit/test_module_structure.py` - Unit tests to verify module structure and naming after rename.
+- `src/terminal_mcp_server/__init__.py` - Main module initialization (renamed from mcp_scaffolding) with updated class imports.
+- `src/terminal_mcp_server/server.py` - Main MCP server implementation with terminal-specific tools (renamed with updated class names and log messages).
+- `src/terminal_mcp_server/handlers/` - Core handlers directory (renamed from mcp_scaffolding).
+- `src/terminal_mcp_server/utils/` - Utility modules directory (renamed from mcp_scaffolding).
+- `src/terminal_mcp_server/models/` - Data models directory (renamed from mcp_scaffolding).
+- `pyproject.toml` - Updated project configuration with new module references, project name, script entry points, dependencies, URLs, and pytest configuration.
+- `Makefile` - Updated with new module run commands.
+- `tests/unit/test_models.py` - Updated imports to use terminal_mcp_server.
+- `tests/unit/test_example_handlers.py` - Updated imports to use terminal_mcp_server.
+- `config/config.yaml` - Updated server name and description to Terminal MCP Server.
+- `tests/unit/test_pyproject_config.py` - Comprehensive tests for pyproject.toml configuration validation.
+- `src/terminal_mcp_server/handlers/command_handlers.py` - Core command execution handlers with placeholder implementations.
 - `src/terminal_mcp_server/handlers/process_handlers.py` - Background process management handlers.
 - `src/terminal_mcp_server/handlers/python_handlers.py` - Python script execution and virtual environment handlers.
 - `src/terminal_mcp_server/handlers/environment_handlers.py` - Environment and directory management handlers.
-- `src/terminal_mcp_server/models/terminal_models.py` - Data models for commands, processes, and execution results.
-- `src/terminal_mcp_server/utils/command_executor.py` - Core command execution utilities with streaming support.
-- `src/terminal_mcp_server/utils/process_manager.py` - Background process tracking and management utilities.
-- `src/terminal_mcp_server/utils/output_streamer.py` - Real-time output streaming implementation.
-- `src/terminal_mcp_server/utils/venv_manager.py` - Virtual environment detection and management utilities.
+- `src/terminal_mcp_server/models/terminal_models.py` - Data models for commands, processes, and execution results with Pydantic validation.
+- `src/terminal_mcp_server/utils/command_executor.py` - Core command execution utilities with streaming support (placeholder).
+- `src/terminal_mcp_server/utils/process_manager.py` - Background process tracking and management utilities (placeholder).
+- `src/terminal_mcp_server/utils/output_streamer.py` - Real-time output streaming implementation (placeholder).
+- `src/terminal_mcp_server/utils/venv_manager.py` - Virtual environment detection and management utilities (placeholder).
+- `tests/unit/test_directory_structure.py` - Comprehensive tests for validating the terminal server directory structure.
+- `tests/unit/test_terminal_models.py` - Tests for the new terminal-specific data models.
+- `config/config.yaml` - Comprehensive terminal server configuration with execution, security, and streaming settings.
+- `tests/unit/test_terminal_config.py` - Comprehensive tests for terminal server configuration validation.
+- `tests/unit/test_scaffolding_cleanup.py` - Tests verifying all example/scaffolding files have been removed.
+- `README.md` - Updated to remove scaffolding references and reflect terminal server focus.
 - `tests/unit/test_command_handlers.py` - Unit tests for command execution handlers.
 - `tests/unit/test_process_handlers.py` - Unit tests for process management handlers.
 - `tests/unit/test_python_handlers.py` - Unit tests for Python execution handlers.
@@ -33,13 +50,13 @@
 
 ## Tasks
 
-- [ ] 1.0 Setup Project Infrastructure and Dependencies
-  - [ ] 1.1 Update requirements.txt with new dependencies (psutil, asyncio subprocess utilities)
-  - [ ] 1.2 Rename mcp_scaffolding module to terminal_mcp_server throughout the project
-  - [ ] 1.3 Update pyproject.toml configuration and scripts entry point
-  - [ ] 1.4 Create new directory structure for terminal-specific handlers and utilities
-  - [ ] 1.5 Update configuration files to support terminal server settings
-  - [ ] 1.6 Remove example handlers and models from the scaffolding
+- [x] 1.0 Setup Project Infrastructure and Dependencies
+  - [x] 1.1 Update requirements.txt with new dependencies (psutil, asyncio subprocess utilities)
+  - [x] 1.2 Rename mcp_scaffolding module to terminal_mcp_server throughout the project
+  - [x] 1.3 Update pyproject.toml configuration and scripts entry point
+  - [x] 1.4 Create new directory structure for terminal-specific handlers and utilities
+  - [x] 1.5 Update configuration files to support terminal server settings
+  - [x] 1.6 Remove example handlers and models from the scaffolding
 
 - [ ] 2.0 Implement Core Command Execution System
   - [ ] 2.1 Create terminal_models.py with CommandRequest, CommandResult, and ProcessInfo models

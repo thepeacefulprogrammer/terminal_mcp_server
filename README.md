@@ -85,7 +85,7 @@ This project is currently in development. See our [Implementation Task List](tas
 
 ## 🛠️ Current Development Setup
 
-This project started from the MCP Scaffolding template and is being transformed into a Terminal MCP Server.
+This project provides a comprehensive Terminal MCP Server implementation.
 
 ### Quick Start (Development)
 
@@ -109,7 +109,7 @@ pre-commit install
 
 ```bash
 # Run the server (currently example tools only)
-python -m mcp_scaffolding.server
+python -m terminal_mcp_server.server
 
 # Run tests
 pytest
@@ -119,7 +119,7 @@ pytest
 
 - **[Product Requirements Document](tasks/prd-terminal-mcp-server.md)** - Complete feature specifications
 - **[Implementation Task List](tasks/tasks-prd-terminal-mcp-server.md)** - Detailed development roadmap
-- **[Current Examples](#available-example-tools)** - Test tools from scaffolding template
+- **[Current Examples](#available-example-tools)** - Test tools from development version
 
 ## 🔧 Architecture Overview
 
@@ -137,9 +137,9 @@ pytest
 - **Pydantic**: Data validation and modeling
 - **pytest**: Testing framework with >90% coverage target
 
-## 🎮 Available Example Tools (Current Scaffolding)
+## 🎮 Available Example Tools (Current Development)
 
-The current scaffolding includes example tools for testing MCP connectivity:
+The current development version includes example tools for testing MCP connectivity:
 
 ### 1. `test_connection`
 **Purpose**: Test the MCP server connection

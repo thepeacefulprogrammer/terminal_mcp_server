@@ -1,14 +1,63 @@
 server:
-  name: "mcp-scaffolding-server"
+  name: "terminal-mcp-server"
   host: "localhost"
   port: 8000
-  description: "MCP Scaffolding Server - A template for building MCP servers"
+  description: "Terminal MCP Server - Provides comprehensive terminal command execution capabilities"
 
 logging:
   level: "INFO"
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
   file_enabled: true
   console_enabled: true
+  file:
+    enabled: true
+    path: "logs/terminal_mcp_server.log"
+    max_size: 10485760  # 10MB
+    backup_count: 5
+
+# Terminal MCP Server specific configuration
+terminal:
+  # Command execution settings
+  execution:
+    default_timeout: 30          # Default command timeout in seconds
+    max_timeout: 300             # Maximum allowed timeout in seconds
+    default_working_directory: "."  # Default working directory for commands
+    capture_output: true         # Whether to capture command output by default
+    
+  # Background process management
+  processes:
+    max_background_processes: 10    # Maximum number of concurrent background processes
+    cleanup_interval: 60           # Process cleanup interval in seconds
+    auto_cleanup_completed: true   # Automatically cleanup completed processes
+    
+  # Security settings
+  security:
+    enable_shell_access: true      # Allow shell command execution
+    max_command_length: 2048       # Maximum command length in characters
+    restricted_commands:           # Commands that are not allowed
+      - "rm -rf /"
+      - "mkfs"
+      - "format"
+      - "fdisk"
+      - "dd if="
+    allowed_directories:           # Directories where commands can be executed (empty = all)
+      - "."
+      - "/tmp"
+      - "/home"
+      
+  # Output streaming configuration
+  output:
+    buffer_size: 8192             # Output buffer size in bytes
+    max_output_size: 10485760     # Maximum output size in bytes (10MB)
+    stream_real_time: true        # Enable real-time output streaming
+    include_timestamps: true      # Include timestamps in output
+    
+  # Python environment settings
+  python:
+    default_interpreter: "python3"   # Default Python interpreter
+    venv_directory: "./venvs"        # Directory for virtual environments
+    auto_activate_venv: false        # Automatically activate virtual environments
+    pip_install_timeout: 300        # Timeout for pip installs in seconds
 
 features:
   enable_auth: false

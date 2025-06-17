@@ -21,4 +21,10 @@ asyncio-tools>=0.3.0
 typing-extensions>=4.8.0
 
 # YAML configuration support (optional)
-PyYAML>=6.0.0 
+PyYAML>=6.0.0
+
+# Terminal and Process Management Dependencies
+psutil>=5.9.0
+
+# Additional async subprocess utilities for enhanced process control
+aiofiles>=23.0.0 
