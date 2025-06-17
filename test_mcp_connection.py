@@ -59,7 +59,7 @@ async def main():
         print("\n🎉 MCP Server is ready for testing!")
         print("\n📋 Next steps:")
         print("1. Use mcp.json with an MCP client (like Claude Desktop)")
-        print("2. Test tools: test_connection, execute_command, start_background_process")
+        print("2. Test tools: test_connection, execute_command, execute_command_background")
         print("3. Check logs in logs/ directory for detailed information")
     else:
         print("\n❌ MCP Server has issues that need fixing")

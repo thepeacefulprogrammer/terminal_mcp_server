@@ -6,11 +6,12 @@ import os
 import signal
 import subprocess
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, AsyncGenerator, Tuple
 import errno
 import json
 
 from ..models.terminal_models import CommandRequest, CommandResult
+from .output_streamer import OutputStreamer
 
 logger = logging.getLogger(__name__)
 
@@ -344,4 +345,252 @@ class CommandExecutor:
         except (ProcessLookupError, OSError) as e:
             # Process already dead
             logger.debug(f"[{execution_id}] Process already terminated: {e}")
-            pass 
+            pass
+
+    async def execute_with_streaming(
+        self, 
+        request: CommandRequest
+    ) -> Tuple[AsyncGenerator[str, None], CommandResult]:
+        """
+        Execute a command with real-time output streaming.
+        
+        Args:
+            request: Command execution request
+            
+        Returns:
+            Tuple of (stream_generator, final_result)
+        """
+        started_at = datetime.now()
+        self._command_counter += 1
+        execution_id = f"cmd_stream_{self._command_counter}_{started_at.strftime('%Y%m%d_%H%M%S_%f')}"
+        
+        logger.info(f"[{execution_id}] Starting streaming command execution")
+        logger.info(f"[{execution_id}] Executing command: {request.command}")
+        logger.debug(f"[{execution_id}] Working directory: {request.working_directory}")
+        logger.debug(f"[{execution_id}] Environment variables count: {len(request.environment_variables) if request.environment_variables else 0}")
+        
+        try:
+            # Validate working directory if specified
+            if request.working_directory and not os.path.exists(request.working_directory):
+                raise FileNotFoundError(f"Working directory does not exist: {request.working_directory}")
+            
+            if request.working_directory and not os.path.isdir(request.working_directory):
+                raise NotADirectoryError(f"Working directory is not a directory: {request.working_directory}")
+            
+            # Prepare environment variables
+            env = os.environ.copy()
+            if request.environment_variables:
+                for key, value in request.environment_variables.items():
+                    if not isinstance(key, str) or not isinstance(value, str):
+                        logger.warning(f"[{execution_id}] Invalid environment variable: {key}={value}, skipping")
+                        continue
+                    env[key] = value
+                logger.debug(f"[{execution_id}] Environment variables applied successfully")
+            
+            # Prepare working directory
+            cwd = request.working_directory or os.getcwd()
+            logger.debug(f"[{execution_id}] Resolved working directory: {cwd}")
+            
+            # Create output streamer
+            output_streamer = OutputStreamer()
+            
+            # Execute command with streaming
+            stream_generator, final_result = await self._execute_with_streaming_capture(
+                request.command, cwd, env, request.timeout, execution_id, output_streamer
+            )
+            
+            return stream_generator, final_result
+            
+        except Exception as e:
+            completed_at = datetime.now()
+            execution_time = (completed_at - started_at).total_seconds()
+            self._total_execution_time += execution_time
+            
+            error_message = self._get_error_message(e)
+            logger.error(f"[{execution_id}] Streaming command execution failed: {error_message}")
+            
+            result = CommandResult(
+                command=request.command,
+                exit_code=-1,
+                stdout="",
+                stderr=error_message,
+                execution_time=execution_time,
+                started_at=started_at,
+                completed_at=completed_at
+            )
+            
+            # Create empty stream generator for error case
+            async def empty_stream():
+                yield f"Error: {error_message}"
+                return
+            
+            return empty_stream(), result
+
+    async def _execute_with_streaming_capture(
+        self,
+        command: str,
+        cwd: str,
+        env: Dict[str, str],
+        timeout: Optional[int],
+        execution_id: str,
+        output_streamer: OutputStreamer
+    ) -> Tuple[AsyncGenerator[str, None], CommandResult]:
+        """Execute command with streaming output capture."""
+        started_at = datetime.now()
+        
+        try:
+            logger.debug(f"[{execution_id}] Creating subprocess for streaming")
+            # Create subprocess with pipes
+            process = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=cwd,
+                env=env,
+                preexec_fn=os.setsid if hasattr(os, 'setsid') else None
+            )
+            
+            logger.debug(f"[{execution_id}] Subprocess created with PID: {process.pid}")
+            
+            # Create the streaming generator
+            stream_generator = self._create_stream_generator(
+                process, output_streamer, execution_id, timeout
+            )
+            
+            # Wait for process completion in background
+            final_result_task = asyncio.create_task(
+                self._wait_for_process_completion(
+                    process, command, started_at, execution_id, timeout
+                )
+            )
+            
+            return stream_generator, await final_result_task
+            
+        except Exception as e:
+            logger.error(f"[{execution_id}] Error creating streaming subprocess: {e}")
+            completed_at = datetime.now()
+            execution_time = (completed_at - started_at).total_seconds()
+            
+            result = CommandResult(
+                command=command,
+                exit_code=-1,
+                stdout="",
+                stderr=f"Error creating subprocess: {str(e)}",
+                execution_time=execution_time,
+                started_at=started_at,
+                completed_at=completed_at
+            )
+            
+            async def error_stream():
+                yield f"Error: {str(e)}"
+                return
+            
+            return error_stream(), result
+
+    async def _create_stream_generator(
+        self,
+        process: asyncio.subprocess.Process,
+        output_streamer: OutputStreamer,
+        execution_id: str,
+        timeout: Optional[int]
+    ) -> AsyncGenerator[str, None]:
+        """Create async generator for streaming output."""
+        logger.debug(f"[{execution_id}] Starting output streaming")
+        
+        try:
+            # Stream output from the process
+            async for chunk in output_streamer.stream_output(process):
+                yield chunk
+                
+        except Exception as e:
+            logger.error(f"[{execution_id}] Error during output streaming: {e}")
+            yield f"\n[STREAMING ERROR: {str(e)}]"
+        
+        finally:
+            logger.debug(f"[{execution_id}] Output streaming completed")
+
+    async def _wait_for_process_completion(
+        self,
+        process: asyncio.subprocess.Process,
+        command: str,
+        started_at: datetime,
+        execution_id: str,
+        timeout: Optional[int]
+    ) -> CommandResult:
+        """Wait for process completion and return final result."""
+        try:
+            # Wait for process completion with timeout
+            if timeout:
+                await asyncio.wait_for(process.wait(), timeout=timeout)
+            else:
+                await process.wait()
+            
+            completed_at = datetime.now()
+            execution_time = (completed_at - started_at).total_seconds()
+            self._total_execution_time += execution_time
+            
+            # Capture remaining output
+            stdout_bytes, stderr_bytes = await process.communicate()
+            stdout_output = stdout_bytes.decode('utf-8', errors='replace') if stdout_bytes else ""
+            stderr_output = stderr_bytes.decode('utf-8', errors='replace') if stderr_bytes else ""
+            
+            logger.info(f"[{execution_id}] Streaming command completed with exit code: {process.returncode}")
+            logger.info(f"[{execution_id}] Execution time: {execution_time:.3f}s")
+            
+            result = CommandResult(
+                command=command,
+                exit_code=process.returncode,
+                stdout=stdout_output,
+                stderr=stderr_output,
+                execution_time=execution_time,
+                started_at=started_at,
+                completed_at=completed_at
+            )
+            
+            # Log audit trail
+            self._log_command_audit(
+                CommandRequest(command=command, capture_output=True), 
+                result, 
+                execution_id
+            )
+            
+            return result
+            
+        except asyncio.TimeoutError:
+            logger.warning(f"[{execution_id}] Streaming command timed out after {timeout} seconds")
+            
+            # Kill the process
+            await self._kill_process_group(process, execution_id)
+            
+            completed_at = datetime.now()
+            execution_time = (completed_at - started_at).total_seconds()
+            self._total_execution_time += execution_time
+            
+            result = CommandResult(
+                command=command,
+                exit_code=-1,
+                stdout="",
+                stderr=f"Command timed out after {timeout} seconds",
+                execution_time=execution_time,
+                started_at=started_at,
+                completed_at=completed_at
+            )
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"[{execution_id}] Error waiting for process completion: {e}")
+            completed_at = datetime.now()
+            execution_time = (completed_at - started_at).total_seconds()
+            
+            result = CommandResult(
+                command=command,
+                exit_code=-1,
+                stdout="",
+                stderr=f"Error during execution: {str(e)}",
+                execution_time=execution_time,
+                started_at=started_at,
+                completed_at=completed_at
+            )
+            
+            return result 

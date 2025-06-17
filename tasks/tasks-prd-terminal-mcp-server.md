@@ -17,14 +17,16 @@
 - `config/config.yaml` - Updated server name and description to Terminal MCP Server.
 - `tests/unit/test_pyproject_config.py` - Comprehensive tests for pyproject.toml configuration validation.
 - `src/terminal_mcp_server/handlers/command_handlers.py` - Core command execution handlers with placeholder implementations.
-- `src/terminal_mcp_server/handlers/process_handlers.py` - Background process management handlers.
+- `src/terminal_mcp_server/handlers/process_handlers.py` - Complete background process management handlers with 6 MCP tools (execute_command_background, list_background_processes, get_process_status, kill_background_process, restart_background_process, get_process_output).
+- `tests/unit/test_process_handlers.py` - Comprehensive unit tests for process handlers functionality (18 tests covering all MCP tools, error handling, and concurrent operations).
 - `src/terminal_mcp_server/handlers/python_handlers.py` - Python script execution and virtual environment handlers.
 - `src/terminal_mcp_server/handlers/environment_handlers.py` - Environment and directory management handlers.
 - `src/terminal_mcp_server/models/terminal_models.py` - Data models for commands, processes, and execution results with Pydantic validation.
 - `src/terminal_mcp_server/utils/command_executor.py` - Core command execution utilities with streaming support (placeholder).
-- `src/terminal_mcp_server/utils/process_manager.py` - Background process tracking and management utilities (placeholder).
+- `src/terminal_mcp_server/utils/process_manager.py` - Complete background process tracking and management implementation with async process control, lifecycle management, output capture, and resource cleanup.
+- `tests/unit/test_process_manager.py` - Comprehensive unit tests for process manager functionality (15 tests covering process lifecycle, status tracking, killing, restarting, and output capture).
 - `src/terminal_mcp_server/utils/output_streamer.py` - Enhanced real-time output streaming implementation with configurable buffer sizes, dynamic adjustment, and validation.
-- `src/terminal_mcp_server/utils/venv_manager.py` - Virtual environment detection and management utilities (placeholder).
+- `src/terminal_mcp_server/utils/venv_manager.py` - Complete virtual environment detection and management implementation with system Python detection, common venv locations scanning, real venv creation, and package installation support.
 - `tests/unit/test_directory_structure.py` - Comprehensive tests for validating the terminal server directory structure.
 - `tests/unit/test_terminal_models.py` - Tests for the new terminal-specific data models.
 - `config/config.yaml` - Comprehensive terminal server configuration with execution, security, and streaming settings.
@@ -73,26 +75,28 @@
   - [x] 2.7 Add support for custom environment variables in command execution
   - [x] 2.8 Create comprehensive logging for all command executions
 
-- [ ] 3.0 Implement Background Process Management
-  - [ ] 3.1 Create process_manager.py with background process tracking and lifecycle management
-  - [ ] 3.2 Implement process_handlers.py with background process MCP tools
-  - [ ] 3.3 Add execute_command_background tool with process ID return
-  - [ ] 3.4 Implement list_background_processes tool with status monitoring
-  - [ ] 3.5 Add kill_background_process and restart_background_process tools
-  - [ ] 3.6 Implement get_process_status and get_command_output tools
-  - [ ] 3.7 Add automatic process cleanup and resource management
-  - [ ] 3.8 Implement process output capture and retrieval for background processes
+- [x] 3.0 Implement Background Process Management
+  - [x] 3.1 Create process_manager.py with background process tracking and lifecycle management
+  - [x] 3.2 Implement process_handlers.py with background process MCP tools
+  - [x] 3.3 Add execute_command_background tool with process ID return
+  - [x] 3.4 Implement list_background_processes tool with status monitoring
+  - [x] 3.5 Add kill_background_process and restart_background_process tools
+  - [x] 3.6 Implement get_process_status and get_command_output tools
+  - [x] 3.7 Add automatic process cleanup and resource management
+  - [x] 3.8 Implement process output capture and retrieval for background processes
+  - [x] 3.9 Register process handlers tools in server.py
 
-- [ ] 4.0 Implement Python Script Execution and Virtual Environment Support
-  - [ ] 4.1 Create python_handlers.py with Python execution MCP tools
-  - [ ] 4.2 Implement execute_python_script tool with output streaming
-  - [ ] 4.3 Add execute_python_code tool for direct code execution
-  - [ ] 4.4 Create venv_manager.py for virtual environment detection and management
-  - [ ] 4.5 Implement list_virtual_environments and activate_virtual_environment tools
-  - [ ] 4.6 Add create_virtual_environment tool with dependency management
-  - [ ] 4.7 Implement install_python_package tool with environment support
-  - [ ] 4.8 Add install_dependencies tool for requirements.txt handling
-  - [ ] 4.9 Support passing command-line arguments to Python scripts
+- [x] 4.0 Implement Python Script Execution and Virtual Environment Support
+  - [x] 4.1 Create python_handlers.py with Python execution MCP tools
+  - [x] 4.2 Implement execute_python_script tool with output streaming
+  - [x] 4.3 Register python handlers tools in server.py
+  - [x] 4.4 Add execute_python_code tool for direct code execution
+  - [x] 4.5 Create venv_manager.py for virtual environment detection and management
+  - [x] 4.6 Implement list_virtual_environments and activate_virtual_environment tools
+  - [x] 4.7 Add create_virtual_environment tool with dependency management
+  - [x] 4.8 Implement install_python_package tool with environment support
+  - [x] 4.9 Add install_dependencies tool for requirements.txt handling
+  - [x] 4.10 Support passing command-line arguments to Python scripts
 
 - [ ] 5.0 Implement Output Streaming and Error Handling
   - [ ] 5.1 Create output_streamer.py with async output streaming implementation
@@ -103,14 +107,24 @@
   - [ ] 5.6 Create environment_handlers.py for directory and environment management
   - [ ] 5.7 Implement change_directory and get_current_directory tools
   - [ ] 5.8 Add set_environment_variable and get_environment_variables tools
-  - [ ] 5.9 Implement graceful error recovery and reporting mechanisms
+  - [ ] 5.9 Register environment handlers tools in server.py
+  - [ ] 5.10 Implement graceful error recovery and reporting mechanisms
 
 - [ ] 6.0 Add Comprehensive Testing and Documentation
   - [ ] 6.1 Create unit tests for all handler modules with >90% coverage
   - [ ] 6.2 Implement unit tests for all utility modules (command_executor, process_manager, etc.)
   - [ ] 6.3 Create integration tests for complete terminal operation workflows
   - [ ] 6.4 Add performance tests for output streaming and process management
-  - [ ] 6.5 Update server.py to register all new MCP tools and remove example tools
-  - [ ] 6.6 Create comprehensive error handling tests for edge cases
-  - [ ] 6.7 Add tests for virtual environment operations and Python execution
+  - [ ] 6.5 Create comprehensive error handling tests for edge cases
+  - [ ] 6.6 Add tests for virtual environment operations and Python execution
+  - [x] 6.7 Remove duplicate start_background_process placeholder tool from server.py (duplicate of execute_command_background)
   - [ ] 6.8 Update README.md with terminal server usage examples and API documentation
+
+- [ ] 7.0 Fix Identified Issues and Polish Implementation
+  - [x] 7.1 Fix virtual environment listing bug - VirtualEnvironmentInfo object not subscriptable error in list_virtual_environments tool
+  - [ ] 7.2 Investigate missing execute_python_script_with_streaming tool in MCP client (registered but not accessible)
+  - [ ] 7.3 Improve streaming output collection to capture real-time chunks in final response (currently returns empty streamed_output array)
+  - [ ] 7.4 Enhance install_python_package to provide detailed pip installation output instead of simplified success message
+  - [ ] 7.5 Add comprehensive error handling tests for virtual environment operations to prevent object access bugs
+  - [ ] 7.6 Verify all 17 tools are accessible through different MCP clients and resolve any client-specific issues
+  - [ ] 7.7 Add integration tests for Python package installation and usage workflows to ensure end-to-end functionality

@@ -205,27 +205,11 @@ class TerminalMCPServer:
         # Register command execution tools using the handler
         command_handlers.register_tools(self.mcp)
 
-        # Background process management tool (placeholder - will be implemented in Task 3.0)
-        @self.mcp.tool()
-        async def start_background_process(
-            command: str,
-            working_directory: str = None,
-        ) -> str:
-            """
-            Start a background process.
+        # Register background process management tools
+        process_handlers.register_tools(self.mcp)
 
-            Args:
-                command: The command to run in background
-                working_directory: Directory to run the command in
-
-            Returns:
-                JSON string with the process information
-            """
-            logger.info(f"start_background_process called: command={command}")
-            await self._ensure_async_initialized()
-
-            # Placeholder implementation - will be implemented in later tasks
-            return f"Background process '{command}' started successfully (placeholder)"
+        # Register Python execution and virtual environment tools
+        python_handlers.register_tools(self.mcp)
 
         logger.info("MCP tools registered successfully")
 

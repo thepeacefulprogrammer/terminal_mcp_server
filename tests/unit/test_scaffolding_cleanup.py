@@ -145,7 +145,11 @@ def test_only_terminal_tests_exist():
         "test_scaffolding_cleanup.py",  # This test file itself
         "test_command_executor.py",     # New command executor tests
         "test_command_handlers.py",    # New command handlers tests
-        "test_output_streamer.py"      # New output streamer tests
+        "test_output_streamer.py",     # New output streamer tests
+        "test_process_manager.py",     # New process manager tests
+        "test_process_handlers.py",    # New process handlers tests
+        "test_python_handlers.py",     # New python handlers tests
+        "test_venv_manager.py"         # New venv manager tests
     }
     
     # Get actual test files
