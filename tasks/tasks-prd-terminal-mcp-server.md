@@ -50,6 +50,10 @@
 - `src/terminal_mcp_server/utils/command_executor.py` - Enhanced with streaming output capture that stores chunks as they pass through for inclusion in final responses.
 - `src/terminal_mcp_server/handlers/python_handlers.py` - Updated streaming methods to include captured chunks in final MCP tool responses instead of returning empty streamed_output arrays.
 - `tests/unit/test_python_handlers.py` - Added comprehensive tests for streaming output capture functionality to verify that real-time chunks are properly collected and included in responses.
+- `src/terminal_mcp_server/handlers/environment_handlers.py` - Complete environment and directory management handlers with 4 MCP tools (get_current_directory, change_directory, get_environment_variables, set_environment_variable).
+- `tests/unit/test_environment_handlers.py` - Comprehensive unit tests for environment handlers functionality (18 tests covering directory operations, environment variables, error handling, and MCP tool registration).
+- `src/terminal_mcp_server/server.py` - Updated to register environment handlers tools for directory and environment variable management.
+- `tests/unit/test_scaffolding_cleanup.py` - Updated to include test_environment_handlers.py in expected test files list.
 
 ### Notes
 
@@ -101,16 +105,16 @@
   - [x] 4.9 Add install_dependencies tool for requirements.txt handling
   - [x] 4.10 Support passing command-line arguments to Python scripts
 
-- [ ] 5.0 Implement Output Streaming and Error Handling
-  - [ ] 5.1 Create output_streamer.py with async output streaming implementation
-  - [ ] 5.2 Implement real-time stdout and stderr streaming with separation
-  - [ ] 5.3 Add configurable output buffer sizes and memory limits
-  - [ ] 5.4 Implement output size limits to prevent memory exhaustion
+- [ ] 5.0 Implement Environment Management and Enhanced Error Handling
+  - [x] 5.1 Create output_streamer.py with async output streaming implementation (completed in previous tasks)
+  - [ ] 5.2 Implement real-time stdout and stderr streaming with separation (enhance current combined streaming)
+  - [x] 5.3 Add configurable output buffer sizes and memory limits (completed in previous tasks)
+  - [ ] 5.4 Implement output size limits to prevent memory exhaustion (add memory safeguards)
   - [ ] 5.5 Add comprehensive error handling for all command execution scenarios
-  - [ ] 5.6 Create environment_handlers.py for directory and environment management
-  - [ ] 5.7 Implement change_directory and get_current_directory tools
-  - [ ] 5.8 Add set_environment_variable and get_environment_variables tools
-  - [ ] 5.9 Register environment handlers tools in server.py
+  - [x] 5.6 Create environment_handlers.py for directory and environment management
+  - [x] 5.7 Implement change_directory and get_current_directory tools
+  - [x] 5.8 Add set_environment_variable and get_environment_variables tools
+  - [x] 5.9 Register environment handlers tools in server.py
   - [ ] 5.10 Implement graceful error recovery and reporting mechanisms
 
 - [ ] 7.0 Fix Identified Issues and Polish Implementation

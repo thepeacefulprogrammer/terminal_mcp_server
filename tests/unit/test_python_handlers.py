@@ -878,8 +878,8 @@ async def test_python_handlers_registered_in_server():
                 assert tool_name in tool_names, f"Python tool '{tool_name}' should be registered in server"
             
             # Verify we have the expected total count
-            # Expected: 1 (test_connection) + 1 (execute_command) + 6 (process tools) + 9 (python tools) = 17
-            expected_total = 17
+            # Expected: 1 (test_connection) + 1 (execute_command) + 6 (process tools) + 9 (python tools) + 4 (environment tools) = 21
+            expected_total = 21
             assert len(tool_names) == expected_total, f"Expected exactly {expected_total} tools, got {len(tool_names)}: {tool_names}"
             
             # Verify specific tool categories are present

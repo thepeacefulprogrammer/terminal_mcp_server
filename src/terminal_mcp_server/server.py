@@ -211,6 +211,9 @@ class TerminalMCPServer:
         # Register Python execution and virtual environment tools
         python_handlers.register_tools(self.mcp)
 
+        # Register environment and directory management tools
+        environment_handlers.register_tools(self.mcp)
+
         logger.info("MCP tools registered successfully")
 
     def run(self):
