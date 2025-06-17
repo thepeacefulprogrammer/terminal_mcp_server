@@ -17,10 +17,58 @@ class OutputStreamer:
         Args:
             buffer_size: Size of output buffer in bytes
             max_output_size: Maximum total output size in bytes
+            
+        Raises:
+            ValueError: If buffer_size is invalid (zero or negative)
         """
+        # Validate buffer size
+        if buffer_size <= 0:
+            raise ValueError(f"Buffer size must be positive, got: {buffer_size}")
+        
+        if max_output_size <= 0:
+            raise ValueError(f"Max output size must be positive, got: {max_output_size}")
+        
         self.buffer_size = buffer_size
         self.max_output_size = max_output_size
+        self._original_buffer_size = buffer_size  # Store original for reset capability
         logger.info(f"OutputStreamer initialized with buffer size: {buffer_size}")
+    
+    def adjust_buffer_size(self, new_buffer_size: int) -> None:
+        """
+        Dynamically adjust the buffer size during runtime.
+        
+        Args:
+            new_buffer_size: New buffer size in bytes
+            
+        Raises:
+            ValueError: If new_buffer_size is invalid
+        """
+        if new_buffer_size <= 0:
+            raise ValueError(f"Buffer size must be positive, got: {new_buffer_size}")
+        
+        old_size = self.buffer_size
+        self.buffer_size = new_buffer_size
+        logger.info(f"Buffer size adjusted from {old_size} to {new_buffer_size}")
+    
+    def reset_buffer_size(self) -> None:
+        """Reset buffer size to original initialization value."""
+        old_size = self.buffer_size
+        self.buffer_size = self._original_buffer_size
+        logger.info(f"Buffer size reset from {old_size} to {self.buffer_size}")
+    
+    def get_buffer_stats(self) -> dict:
+        """
+        Get current buffer configuration statistics.
+        
+        Returns:
+            Dictionary containing buffer size information
+        """
+        return {
+            "current_buffer_size": self.buffer_size,
+            "original_buffer_size": self._original_buffer_size,
+            "max_output_size": self.max_output_size,
+            "buffer_size_adjusted": self.buffer_size != self._original_buffer_size
+        }
     
     async def stream_output(
         self,

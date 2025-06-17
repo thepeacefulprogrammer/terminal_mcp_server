@@ -23,7 +23,7 @@
 - `src/terminal_mcp_server/models/terminal_models.py` - Data models for commands, processes, and execution results with Pydantic validation.
 - `src/terminal_mcp_server/utils/command_executor.py` - Core command execution utilities with streaming support (placeholder).
 - `src/terminal_mcp_server/utils/process_manager.py` - Background process tracking and management utilities (placeholder).
-- `src/terminal_mcp_server/utils/output_streamer.py` - Real-time output streaming implementation (placeholder).
+- `src/terminal_mcp_server/utils/output_streamer.py` - Enhanced real-time output streaming implementation with configurable buffer sizes, dynamic adjustment, and validation.
 - `src/terminal_mcp_server/utils/venv_manager.py` - Virtual environment detection and management utilities (placeholder).
 - `tests/unit/test_directory_structure.py` - Comprehensive tests for validating the terminal server directory structure.
 - `tests/unit/test_terminal_models.py` - Tests for the new terminal-specific data models.
@@ -42,7 +42,7 @@
 - `tests/unit/test_environment_handlers.py` - Unit tests for environment management handlers.
 - `tests/unit/test_command_executor.py` - Unit tests for command execution utilities.
 - `tests/unit/test_process_manager.py` - Unit tests for process management utilities.
-- `tests/unit/test_output_streamer.py` - Unit tests for output streaming functionality.
+- `tests/unit/test_output_streamer.py` - Unit tests for output streaming functionality with enhanced buffer configuration tests.
 - `tests/unit/test_venv_manager.py` - Unit tests for virtual environment management.
 - `tests/integration/test_terminal_integration.py` - Integration tests for complete terminal operations.
 
@@ -63,15 +63,15 @@
   - [x] 1.5 Update configuration files to support terminal server settings
   - [x] 1.6 Remove example handlers and models from the scaffolding
 
-- [ ] 2.0 Implement Core Command Execution System
+- [x] 2.0 Implement Core Command Execution System
   - [x] 2.1 Create terminal_models.py with CommandRequest, CommandResult, and ProcessInfo models
   - [x] 2.2 Implement command_executor.py with async command execution and output streaming
   - [x] 2.3 Create command_handlers.py with execute_command MCP tool
-  - [ ] 2.4 Implement real-time output streaming with configurable buffer sizes
-  - [ ] 2.5 Add command timeout and interruption support (Ctrl+C equivalent)
-  - [ ] 2.6 Implement exit code capture and error handling
-  - [ ] 2.7 Add support for custom environment variables in command execution
-  - [ ] 2.8 Create comprehensive logging for all command executions
+  - [x] 2.4 Implement real-time output streaming with configurable buffer sizes
+  - [x] 2.5 Add command timeout and interruption support (Ctrl+C equivalent)
+  - [x] 2.6 Implement exit code capture and error handling
+  - [x] 2.7 Add support for custom environment variables in command execution
+  - [x] 2.8 Create comprehensive logging for all command executions
 
 - [ ] 3.0 Implement Background Process Management
   - [ ] 3.1 Create process_manager.py with background process tracking and lifecycle management

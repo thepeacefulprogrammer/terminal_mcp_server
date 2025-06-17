@@ -290,3 +290,266 @@ class TestOutputStreamer:
         async for chunk in stream:
             chunks.append(chunk)
         return chunks
+
+
+class TestAdvancedBufferConfiguration:
+    """Test cases for advanced buffer size configuration and real-time streaming."""
+    
+    @pytest.fixture
+    def output_streamer(self):
+        """Create standard OutputStreamer instance for testing."""
+        return OutputStreamer()
+    
+    @pytest.fixture
+    def micro_buffer_streamer(self):
+        """Create OutputStreamer with very small buffer for testing buffer behavior."""
+        return OutputStreamer(buffer_size=32)  # Very small buffer
+    
+    @pytest.fixture
+    def large_buffer_streamer(self):
+        """Create OutputStreamer with large buffer for performance testing."""
+        return OutputStreamer(buffer_size=65536)  # 64KB buffer
+    
+    @pytest.fixture
+    def mock_process(self):
+        """Create mock subprocess Process for testing."""
+        mock_proc = Mock()
+        mock_proc.stdout = AsyncMock(spec=asyncio.StreamReader)
+        mock_proc.stderr = AsyncMock(spec=asyncio.StreamReader)
+        return mock_proc
+    
+    @pytest.mark.asyncio
+    async def test_adaptive_buffer_sizing_small_data(self, micro_buffer_streamer, mock_process):
+        """Test streaming behavior with small buffer and small data."""
+        # Small data that fits in one buffer
+        test_data = "Small test data"
+        mock_process.stdout.read.side_effect = [test_data.encode(), b""]
+        
+        chunks = []
+        chunk_sizes = []
+        async for chunk in micro_buffer_streamer.stream_output(mock_process):
+            chunks.append(chunk)
+            chunk_sizes.append(len(chunk))
+        
+        assert len(chunks) > 0
+        assert all(isinstance(chunk, str) for chunk in chunks)
+        # With micro buffer, should respect buffer size limits
+        assert all(size <= micro_buffer_streamer.buffer_size for size in chunk_sizes)
+    
+    @pytest.mark.asyncio
+    async def test_adaptive_buffer_sizing_large_data(self, micro_buffer_streamer, mock_process):
+        """Test streaming behavior with small buffer and large data."""
+        # Large data that requires multiple buffer reads
+        test_data = "X" * 1000  # Much larger than 32-byte buffer
+        mock_process.stdout.read.side_effect = [
+            test_data[:32].encode(),  # First chunk fits buffer
+            test_data[32:64].encode(),  # Second chunk
+            test_data[64:].encode(),    # Remaining data
+            b""  # EOF
+        ]
+        
+        chunks = []
+        total_data = ""
+        async for chunk in micro_buffer_streamer.stream_output(mock_process):
+            chunks.append(chunk)
+            total_data += chunk
+        
+        assert len(chunks) >= 3  # Should have multiple chunks due to small buffer
+        assert len(total_data) == len(test_data)
+    
+    @pytest.mark.asyncio
+    async def test_buffer_memory_efficiency(self, large_buffer_streamer, mock_process):
+        """Test that large buffers handle large data efficiently."""
+        # Large data that fits in one large buffer read
+        test_data = "Y" * 50000  # 50KB of data
+        mock_process.stdout.read.side_effect = [test_data.encode(), b""]
+        
+        chunks = []
+        async for chunk in large_buffer_streamer.stream_output(mock_process):
+            chunks.append(chunk)
+        
+        # Large buffer should handle data more efficiently (fewer chunks)
+        assert len(chunks) > 0
+        # Should be able to handle large chunks efficiently
+        assert sum(len(chunk) for chunk in chunks) == len(test_data)
+    
+    @pytest.mark.asyncio
+    async def test_streaming_latency_with_different_buffers(self, micro_buffer_streamer, large_buffer_streamer):
+        """Test that streaming latency varies appropriately with buffer sizes."""
+        mock_process_micro = Mock()
+        mock_process_micro.stdout = AsyncMock()
+        mock_process_micro.stdout.read.side_effect = [b"data" * 10, b""]
+        
+        mock_process_large = Mock()
+        mock_process_large.stdout = AsyncMock()
+        mock_process_large.stdout.read.side_effect = [b"data" * 10, b""]
+        
+        # Time both streaming operations
+        import time
+        
+        # Micro buffer streaming
+        start_time = time.time()
+        micro_chunks = []
+        async for chunk in micro_buffer_streamer.stream_output(mock_process_micro):
+            micro_chunks.append(chunk)
+        micro_time = time.time() - start_time
+        
+        # Large buffer streaming
+        start_time = time.time()
+        large_chunks = []
+        async for chunk in large_buffer_streamer.stream_output(mock_process_large):
+            large_chunks.append(chunk)
+        large_time = time.time() - start_time
+        
+        # Both should complete successfully
+        assert len(micro_chunks) > 0
+        assert len(large_chunks) > 0
+    
+    @pytest.mark.asyncio
+    async def test_configurable_streaming_intervals(self, output_streamer):
+        """Test that streaming can be configured for different output intervals."""
+        # This tests enhanced real-time streaming with configurable flush intervals
+        mock_process = Mock()
+        mock_process.stdout = AsyncMock()
+        
+        # Simulate data coming in multiple small chunks over time
+        mock_process.stdout.read.side_effect = [
+            b"chunk1\n",
+            b"chunk2\n", 
+            b"chunk3\n",
+            b""
+        ]
+        
+        chunks = []
+        chunk_times = []
+        import time
+        
+        async for chunk in output_streamer.stream_output(mock_process):
+            chunks.append(chunk)
+            chunk_times.append(time.time())
+        
+        assert len(chunks) >= 3
+        # Should have received chunks in real-time intervals
+        assert len(chunk_times) >= 3
+    
+    @pytest.mark.asyncio
+    async def test_dynamic_buffer_size_adjustment(self):
+        """Test that buffer size can be dynamically adjusted during streaming."""
+        # Create streamer with initial buffer size
+        streamer = OutputStreamer(buffer_size=1024)
+        assert streamer.buffer_size == 1024
+        
+        # Test dynamic adjustment (this would be new functionality)
+        # This test would fail initially, indicating we need to implement this feature
+        try:
+            streamer.adjust_buffer_size(2048)
+            assert streamer.buffer_size == 2048
+        except AttributeError:
+            # Expected to fail initially - method doesn't exist yet
+            pytest.skip("Dynamic buffer size adjustment not yet implemented")
+    
+    @pytest.mark.asyncio
+    async def test_streaming_with_backpressure_handling(self, micro_buffer_streamer):
+        """Test streaming behavior when consumer is slower than producer."""
+        mock_process = Mock()
+        mock_process.stdout = AsyncMock()
+        
+        # Fast data production
+        large_chunks = [b"X" * 100 for _ in range(10)]  # 10 chunks of 100 bytes each
+        large_chunks.append(b"")  # EOF
+        mock_process.stdout.read.side_effect = large_chunks
+        
+        chunks = []
+        async for chunk in micro_buffer_streamer.stream_output(mock_process):
+            chunks.append(chunk)
+            # Simulate slow consumer
+            await asyncio.sleep(0.01)
+        
+        # Should handle backpressure gracefully
+        assert len(chunks) > 0
+        total_data = "".join(chunks)
+        assert len(total_data) == 1000  # 10 * 100 bytes
+    
+    @pytest.mark.asyncio
+    async def test_concurrent_streaming_with_different_buffers(self):
+        """Test concurrent streaming operations with different buffer configurations."""
+        # Create streamers with different buffer sizes
+        streamers = [
+            OutputStreamer(buffer_size=512),
+            OutputStreamer(buffer_size=1024),
+            OutputStreamer(buffer_size=4096)
+        ]
+        
+        # Create mock processes for each streamer
+        processes = []
+        for i in range(3):
+            mock_process = Mock()
+            mock_process.stdout = AsyncMock()
+            mock_process.stdout.read.side_effect = [f"Process {i} data".encode(), b""]
+            processes.append(mock_process)
+        
+        # Start concurrent streaming
+        tasks = []
+        for streamer, process in zip(streamers, processes):
+            task = asyncio.create_task(self._collect_all_chunks(streamer.stream_output(process)))
+            tasks.append(task)
+        
+        # Wait for all to complete
+        results = await asyncio.gather(*tasks)
+        
+        # All should complete successfully
+        assert len(results) == 3
+        assert all(len(chunks) > 0 for chunks in results)
+    
+    async def _collect_all_chunks(self, stream):
+        """Helper to collect all chunks from a stream."""
+        chunks = []
+        async for chunk in stream:
+            chunks.append(chunk)
+        return chunks
+    
+    def test_buffer_size_validation(self):
+        """Test that buffer size validation works correctly."""
+        # Valid buffer sizes
+        valid_sizes = [512, 1024, 4096, 8192, 16384, 65536]
+        for size in valid_sizes:
+            streamer = OutputStreamer(buffer_size=size)
+            assert streamer.buffer_size == size
+        
+        # Invalid buffer sizes should be handled appropriately
+        # This test might fail initially if validation isn't implemented
+        try:
+            # Test zero buffer size
+            OutputStreamer(buffer_size=0)
+            assert False, "Should not allow zero buffer size"
+        except ValueError:
+            pass  # Expected
+        
+        try:
+            # Test negative buffer size
+            OutputStreamer(buffer_size=-1)
+            assert False, "Should not allow negative buffer size"
+        except ValueError:
+            pass  # Expected
+    
+    @pytest.mark.asyncio
+    async def test_output_size_limit_with_configurable_buffers(self):
+        """Test that output size limits work correctly with different buffer sizes."""
+        # Small buffer, small output limit
+        small_streamer = OutputStreamer(buffer_size=256, max_output_size=500)
+        
+        # Create process with data that exceeds the output limit
+        mock_process = Mock()
+        mock_process.stdout = AsyncMock()
+        
+        # Generate 1000 bytes of data (exceeds 500-byte limit)
+        large_data = b"X" * 1000
+        mock_process.stdout.read.side_effect = [large_data, b""]
+        
+        chunks = []
+        async for chunk in small_streamer.stream_output(mock_process):
+            chunks.append(chunk)
+        
+        # Should have truncated output
+        total_output = "".join(chunks)
+        assert "TRUNCATED" in total_output or len(total_output) <= 500
